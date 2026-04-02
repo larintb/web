@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-red:    #E63232;
+  --brand-orange: #FF6B00;
+  --brand-dark:   #111111;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #111111;
+  color: #ffffff;
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar oscura para mejor UX */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #1a1a1a; }
+::-webkit-scrollbar-thumb  { background: #444; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #666; }
+
+/* Línea de fuego animada para el header */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.fire-text {
+  background: linear-gradient(90deg, #E63232, #FF6B00, #FFD700, #FF6B00, #E63232);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Botón de acción principal */
+.btn-primary {
+  @apply bg-brand-red hover:bg-brand-dark text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Card del producto */
+.product-card {
+  @apply bg-brand-card rounded-2xl overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-brand-red/20 cursor-pointer;
+}
