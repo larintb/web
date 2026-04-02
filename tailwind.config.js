@@ -15,10 +15,15 @@ module.exports = {
           black:  '#111111',
           gray:   '#1A1A1A',
           card:   '#222222',
+          paper:  '#F6F1E8',
+          ink:    '#171717',
+          line:   '#E8D8C6',
+          muted:  '#6D655C',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'system-ui', 'sans-serif'],
+        display: ['"Bebas Neue"', 'cursive'],
       },
       animation: {
         'slide-up':   'slideUp 0.3s ease-out',

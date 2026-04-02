@@ -6,6 +6,8 @@
   --brand-red:    #E63232;
   --brand-orange: #FF6B00;
   --brand-dark:   #111111;
+  --brand-paper:  #F6F1E8;
+  --brand-ink:    #171717;
 }
 
 * {
@@ -13,9 +15,9 @@
 }
 
 body {
-  background-color: #111111;
-  color: #ffffff;
-  font-family: Inter, system-ui, sans-serif;
+  background-color: var(--brand-paper);
+  color: var(--brand-ink);
+  font-family: Manrope, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -45,7 +47,23 @@ body {
   @apply bg-brand-red hover:bg-brand-dark text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
+.font-display {
+  font-family: 'Bebas Neue', cursive;
+  letter-spacing: 0.04em;
+}
+
+.surface-paper {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(232, 216, 198, 0.95);
+  box-shadow: 0 18px 50px rgba(23, 23, 23, 0.06);
+}
+
+.surface-muted {
+  background: #f3ede4;
+  border: 1px solid rgba(232, 216, 198, 0.9);
+}
+
 /* Card del producto */
 .product-card {
-  @apply bg-brand-card rounded-2xl overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-brand-red/20 cursor-pointer;
+  @apply rounded-3xl overflow-hidden transition-all duration-200 hover:scale-[1.01] cursor-pointer;
 }

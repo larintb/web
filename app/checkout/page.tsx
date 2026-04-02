@@ -55,7 +55,7 @@ function StripeForm({ clientSecret, orderData, onSuccess }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="bg-brand-gray rounded-2xl p-4">
+      <div className="surface-paper rounded-[28px] p-4">
         <PaymentElement />
       </div>
       {error && <p className="text-brand-red text-sm">{error}</p>}
@@ -194,20 +194,20 @@ export default function CheckoutPage() {
   const total    = totalFn();
 
   return (
-    <div className="min-h-screen bg-brand-black">
+    <div className="min-h-screen bg-white text-brand-ink">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-brand-black/95 backdrop-blur border-b border-white/10">
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-brand-line/80">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
           <button onClick={() => step === 'info' ? router.back() : setStep(step === 'payment' ? 'extras' : 'info')}
-            className="text-gray-400 hover:text-white transition-colors text-xl">←</button>
-          <h1 className="text-xl font-black">
-            {step === 'info' ? 'Tus datos' : step === 'extras' ? 'Extras' : 'Pago'}
+            className="text-brand-muted hover:text-brand-ink transition-colors text-xl">←</button>
+          <h1 className="font-display text-5xl leading-none text-brand-ink">
+            {step === 'info' ? 'Datos' : step === 'extras' ? 'Extras' : 'Pago'}
           </h1>
         </div>
         {/* Steps indicator */}
         <div className="max-w-lg mx-auto px-4 pb-3 flex gap-1">
           {(['info', 'extras', 'payment'] as const).map((s, i) => (
-            <div key={s} className={`h-1 flex-1 rounded-full transition-all ${step === s || (i < (['info','extras','payment']).indexOf(step)) ? 'bg-brand-red' : 'bg-brand-gray'}`} />
+            <div key={s} className={`h-1 flex-1 rounded-full transition-all ${step === s || (i < (['info','extras','payment']).indexOf(step)) ? 'bg-brand-red' : 'bg-brand-line'}`} />
           ))}
         </div>
       </header>
@@ -216,75 +216,76 @@ export default function CheckoutPage() {
         {/* STEP 1: Datos del cliente */}
         {step === 'info' && (
           <div className="space-y-4 animate-fade-in">
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Tu nombre *</label>
+            <div className="surface-paper rounded-[28px] p-5 space-y-4 bg-white">
+              <div>
+                <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Nombre</label>
               <input
                 type="text" value={name} onChange={e => setName(e.target.value)}
                 placeholder="Ej: Juan García"
-                className="w-full bg-brand-gray border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-red transition-colors"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">WhatsApp *</label>
-              <PhoneInput value={phone} onChange={setPhone} />
-              <p className="text-xs text-gray-500 mt-1">Te avisamos por aquí cuando tu orden esté lista</p>
-            </div>
-            {deliveryType === 'delivery' && (
-              <div>
-                <label className="text-sm text-gray-400 mb-1 block">Dirección de entrega *</label>
-                <textarea
-                  value={address} onChange={e => setAddress(e.target.value)}
-                  placeholder="Calle, número, colonia, referencias..."
-                  rows={3}
-                  className="w-full bg-brand-gray border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-red transition-colors resize-none"
+                  className="w-full bg-white border border-brand-line rounded-xl px-4 py-3 text-brand-ink placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
                 />
               </div>
-            )}
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Notas especiales (opcional)</label>
-              <input
-                type="text" value={notes} onChange={e => setNotes(e.target.value)}
-                placeholder="Sin cebolla, salsa aparte..."
-                className="w-full bg-brand-gray border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-red transition-colors"
-              />
+              <div>
+                <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">WhatsApp</label>
+                <PhoneInput value={phone} onChange={setPhone} />
+              </div>
+              {deliveryType === 'delivery' && (
+                <div>
+                  <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Dirección</label>
+                  <textarea
+                    value={address} onChange={e => setAddress(e.target.value)}
+                    placeholder="Calle, número, colonia, referencias"
+                    rows={3}
+                    className="w-full bg-white border border-brand-line rounded-xl px-4 py-3 text-brand-ink placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors resize-none"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Notas</label>
+                <input
+                  type="text" value={notes} onChange={e => setNotes(e.target.value)}
+                  placeholder="Sin cebolla, salsa aparte..."
+                  className="w-full bg-white border border-brand-line rounded-xl px-4 py-3 text-brand-ink placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
+                />
+              </div>
             </div>
 
             {/* Timing del pedido */}
             <div>
-              <label className="text-sm text-gray-400 mb-2 block">¿Cuándo quieres tu pedido?</label>
+              <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-3 block">Cuándo</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setOrderTiming('now')}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${orderTiming === 'now' ? 'border-brand-red bg-brand-red/10' : 'border-white/10 bg-brand-gray hover:border-white/30'}`}
+                  className={`p-4 rounded-2xl border text-center transition-all ${orderTiming === 'now' ? 'border-brand-red bg-brand-red/10' : 'border-brand-line bg-white hover:border-brand-red/30'}`}
                 >
                   <div className="text-2xl mb-1">⚡</div>
-                  <p className="font-bold text-sm text-white">Ahora mismo</p>
-                  <p className="text-xs text-gray-400">Lo antes posible</p>
+                  <p className="font-bold text-sm text-brand-ink">Ahora</p>
+                  <p className="text-xs text-brand-muted">Lo antes posible</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setOrderTiming('later')}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${orderTiming === 'later' ? 'border-brand-orange bg-brand-orange/10' : 'border-white/10 bg-brand-gray hover:border-white/30'}`}
+                  className={`p-4 rounded-2xl border text-center transition-all ${orderTiming === 'later' ? 'border-brand-orange bg-brand-orange/10' : 'border-brand-line bg-white hover:border-brand-orange/30'}`}
                 >
                   <div className="text-2xl mb-1">🕐</div>
-                  <p className="font-bold text-sm text-white">Para más tarde</p>
-                  <p className="text-xs text-gray-400">Elige la hora</p>
+                  <p className="font-bold text-sm text-brand-ink">Después</p>
+                  <p className="text-xs text-brand-muted">Elige hora</p>
                 </button>
               </div>
               {orderTiming === 'later' && (
                 <div className="mt-3">
                   {timeSlots.length === 0 ? (
-                    <div className="bg-brand-gray rounded-xl px-4 py-3 text-center text-gray-400 text-sm">
+                    <div className="surface-paper rounded-xl px-4 py-3 text-center text-brand-muted text-sm bg-white">
                       No hay horarios disponibles por hoy
                     </div>
                   ) : (
                     <select
                       value={scheduledTime}
                       onChange={e => setScheduledTime(e.target.value)}
-                      className="w-full bg-brand-gray border border-brand-orange/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-orange transition-colors text-base appearance-none cursor-pointer"
+                      className="w-full bg-white border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-orange transition-colors text-base appearance-none cursor-pointer"
                     >
-                      <option value="" disabled>Selecciona una hora...</option>
+                      <option value="" disabled>Selecciona hora</option>
                       {timeSlots.map(slot => (
                         <option key={slot} value={slot}>{slot} hrs</option>
                       ))}
@@ -292,7 +293,7 @@ export default function CheckoutPage() {
                   )}
                   {scheduledTime && (
                     <p className="text-brand-orange text-xs mt-1.5 text-center font-semibold">
-                      ✓ Tu pedido {deliveryType === 'delivery' ? 'llegará aproximadamente' : 'estará listo'} a las {scheduledTime}
+                      ✓ {deliveryType === 'delivery' ? 'Llega' : 'Listo'} a las {scheduledTime}
                     </p>
                   )}
                 </div>
@@ -300,12 +301,12 @@ export default function CheckoutPage() {
             </div>
 
             {/* Resumen rápido */}
-            <div className="bg-brand-gray rounded-2xl p-4 space-y-2">
-              <p className="text-sm font-bold text-gray-300 mb-3">Resumen del pedido</p>
+            <div className="surface-paper rounded-[28px] p-4 space-y-2 bg-white">
+              <p className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-3">Resumen</p>
               {items.map(i => (
                 <div key={`${i.product_id}-${i.variant_name}`} className="flex justify-between text-sm">
-                  <span className="text-gray-300">{i.qty}× {i.product_name} ({i.variant_name})</span>
-                  <span className="text-white font-semibold">${i.subtotal}</span>
+                  <span className="text-brand-ink">{i.qty}× {i.product_name}</span>
+                  <span className="text-brand-ink font-semibold">${i.subtotal}</span>
                 </div>
               ))}
             </div>
@@ -323,30 +324,30 @@ export default function CheckoutPage() {
         {/* STEP 2: Extras */}
         {step === 'extras' && (
           <div className="space-y-4 animate-fade-in">
-            <p className="text-gray-400 text-sm">Agrega extras a tu orden (opcional)</p>
+            <p className="text-brand-muted text-sm">Extras opcionales</p>
             <div className="grid grid-cols-2 gap-3">
               {availableExtras.map(e => {
                 const inCart = cartExtras.find(ce => ce.extra_id === e.id);
                 return (
-                  <div key={e.id} className="bg-brand-gray rounded-xl p-3 flex flex-col gap-2">
+                  <div key={e.id} className="surface-paper rounded-[24px] p-3 flex flex-col gap-2 bg-white">
                     <div>
-                      <p className="text-white font-semibold text-sm">{e.name}</p>
-                      <p className="text-brand-orange text-sm font-bold">${e.price}</p>
+                      <p className="text-brand-ink font-semibold text-sm">{e.name}</p>
+                      <p className="text-brand-red text-sm font-bold">${e.price}</p>
                     </div>
                     {inCart ? (
                       <div className="flex items-center gap-2">
                         <button onClick={() => removeExtra(e.id)}
-                          className="w-7 h-7 rounded-full bg-brand-black text-white font-bold flex items-center justify-center">−</button>
-                        <span className="text-white font-bold flex-1 text-center">{inCart.qty}</span>
+                          className="w-7 h-7 rounded-full bg-white border border-brand-line text-brand-ink font-bold flex items-center justify-center">−</button>
+                        <span className="text-brand-ink font-bold flex-1 text-center">{inCart.qty}</span>
                         <button onClick={() => addExtra({ extra_id: e.id, extra_name: e.name, qty: 1, unit_price: e.price })}
                           className="w-7 h-7 rounded-full bg-brand-red text-white font-bold flex items-center justify-center">+</button>
                       </div>
                     ) : (
                       <button
                         onClick={() => addExtra({ extra_id: e.id, extra_name: e.name, qty: 1, unit_price: e.price })}
-                        className="w-full text-xs bg-brand-black hover:bg-brand-red text-white py-1.5 rounded-lg font-semibold transition-colors"
+                        className="w-full text-xs bg-white hover:bg-brand-red hover:text-white text-brand-ink py-1.5 rounded-lg font-semibold transition-colors border border-brand-line"
                       >
-                        + Agregar
+                        Agregar
                       </button>
                     )}
                   </div>
@@ -356,49 +357,49 @@ export default function CheckoutPage() {
 
             {/* Método de pago */}
             <div>
-              <p className="text-gray-300 font-semibold mb-3">¿Cómo quieres pagar?</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-3">Pago</p>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setPaymentMethod('stripe')}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${paymentMethod === 'stripe' ? 'border-brand-red bg-brand-red/10' : 'border-white/10 bg-brand-gray hover:border-white/30'}`}
+                  className={`p-4 rounded-2xl border text-center transition-all ${paymentMethod === 'stripe' ? 'border-brand-red bg-brand-red/10' : 'border-brand-line bg-white hover:border-brand-red/30'}`}
                 >
                   <div className="text-2xl mb-1">💳</div>
-                  <p className="font-bold text-sm">Tarjeta</p>
-                  <p className="text-xs text-gray-400">Pago seguro</p>
+                  <p className="font-bold text-sm text-brand-ink">Tarjeta</p>
+                  <p className="text-xs text-brand-muted">Pago seguro</p>
                 </button>
                 <button
                   onClick={() => setPaymentMethod('cash')}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${paymentMethod === 'cash' ? 'border-brand-orange bg-brand-orange/10' : 'border-white/10 bg-brand-gray hover:border-white/30'}`}
+                  className={`p-4 rounded-2xl border text-center transition-all ${paymentMethod === 'cash' ? 'border-brand-orange bg-brand-orange/10' : 'border-brand-line bg-white hover:border-brand-orange/30'}`}
                 >
                   <div className="text-2xl mb-1">💵</div>
-                  <p className="font-bold text-sm">Efectivo</p>
-                  <p className="text-xs text-gray-400">Pagar al recibir</p>
+                  <p className="font-bold text-sm text-brand-ink">Efectivo</p>
+                  <p className="text-xs text-brand-muted">Pagar al recibir</p>
                 </button>
               </div>
             </div>
 
             {/* Total */}
-            <div className="bg-brand-gray rounded-2xl p-4">
-              <div className="flex justify-between text-sm text-gray-400 mb-1">
+            <div className="surface-paper rounded-[28px] p-4 bg-white">
+              <div className="flex justify-between text-sm text-brand-muted mb-1">
                 <span>Subtotal</span><span>${subtotal}</span>
               </div>
               {deliveryFee > 0 && (
-                <div className="flex justify-between text-sm text-gray-400 mb-1">
+                <div className="flex justify-between text-sm text-brand-muted mb-1">
                   <span>Envío</span><span>${deliveryFee}</span>
                 </div>
               )}
-              <div className="flex justify-between text-white font-black text-xl pt-2 border-t border-white/10">
+              <div className="flex justify-between text-brand-ink font-black text-xl pt-2 border-t border-brand-line">
                 <span>Total</span><span>${total}</span>
               </div>
             </div>
 
             {paymentMethod === 'stripe' ? (
               <button onClick={handleGoToPayment} className="btn-primary w-full text-lg">
-                Ir a pagar con tarjeta 💳
+                Continuar a pago
               </button>
             ) : (
               <button onClick={handleCashOrder} disabled={cashLoading} className="btn-primary w-full text-lg bg-brand-orange hover:bg-orange-700">
-                {cashLoading ? 'Enviando orden...' : 'Confirmar orden en efectivo 💵'}
+                {cashLoading ? 'Enviando...' : 'Confirmar orden'}
               </button>
             )}
           </div>
@@ -407,9 +408,9 @@ export default function CheckoutPage() {
         {/* STEP 3: Stripe */}
         {step === 'payment' && paymentMethod === 'stripe' && clientSecret && (
           <div className="animate-fade-in">
-            <div className="bg-brand-gray rounded-2xl p-4 mb-4">
-              <div className="flex justify-between text-white font-black text-xl">
-                <span>Total a pagar</span><span>${total}</span>
+            <div className="surface-paper rounded-[28px] p-4 mb-4 bg-white">
+              <div className="flex justify-between text-brand-ink font-black text-xl">
+                <span>Total</span><span>${total}</span>
               </div>
             </div>
             <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>

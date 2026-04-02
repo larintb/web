@@ -118,24 +118,24 @@ export default function PhoneInput({ value, onChange, placeholder, className = '
         <button
           type="button"
           onClick={() => setOpen(o => !o)}
-          className="h-full flex items-center gap-1.5 bg-brand-gray border border-white/10 hover:border-brand-red/50 rounded-xl px-3 py-3 transition-colors min-w-[80px]"
+          className="h-full flex items-center gap-1.5 bg-white border border-brand-line hover:border-brand-red/50 rounded-xl px-3 py-3 transition-colors min-w-[80px]"
         >
           <span className="text-lg leading-none">{country.flag}</span>
-          <span className="text-white text-sm font-semibold">{country.dial}</span>
-          <span className="text-gray-500 text-xs">▾</span>
+          <span className="text-brand-ink text-sm font-semibold">{country.dial}</span>
+          <span className="text-brand-muted text-xs">▾</span>
         </button>
 
         {open && (
-          <div className="absolute top-full left-0 mt-1 w-64 bg-brand-gray border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
+          <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-brand-line rounded-2xl shadow-2xl z-50 overflow-hidden">
             {/* Búsqueda */}
-            <div className="p-2 border-b border-white/10">
+            <div className="p-2 border-b border-brand-line">
               <input
                 autoFocus
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar país..."
-                className="w-full bg-brand-black rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none"
+                className="w-full bg-white rounded-lg px-3 py-2 text-sm text-brand-ink placeholder-brand-muted focus:outline-none border border-brand-line"
               />
             </div>
             {/* Lista */}
@@ -145,15 +145,15 @@ export default function PhoneInput({ value, onChange, placeholder, className = '
                   key={c.code}
                   type="button"
                   onClick={() => handleCountrySelect(c)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-brand-black/50 transition-colors text-left ${country.code === c.code ? 'bg-brand-red/10' : ''}`}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-brand-red/5 transition-colors text-left ${country.code === c.code ? 'bg-brand-red/10' : ''}`}
                 >
                   <span className="text-xl">{c.flag}</span>
-                  <span className="text-white text-sm flex-1">{c.name}</span>
-                  <span className="text-gray-400 text-xs font-mono">{c.dial}</span>
+                  <span className="text-brand-ink text-sm flex-1">{c.name}</span>
+                  <span className="text-brand-muted text-xs font-mono">{c.dial}</span>
                 </button>
               ))}
               {filtered.length === 0 && (
-                <p className="text-center text-gray-500 text-sm py-4">Sin resultados</p>
+                <p className="text-center text-brand-muted text-sm py-4">Sin resultados</p>
               )}
             </div>
           </div>
@@ -167,7 +167,7 @@ export default function PhoneInput({ value, onChange, placeholder, className = '
         value={displayValue}
         onChange={handleLocalChange}
         placeholder={placeholder ?? `(${country.digitLen === 10 ? '868' : '000'}) 000 0000`}
-        className="flex-1 bg-brand-gray border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-red transition-colors font-mono"
+        className="flex-1 bg-white border border-brand-line rounded-xl px-4 py-3 text-brand-ink placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors font-mono"
       />
     </div>
   );

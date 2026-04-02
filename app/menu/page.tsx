@@ -8,13 +8,20 @@ import ProductCard from '@/components/ProductCard';
 import CartDrawer from '@/components/CartDrawer';
 import type { Category, Product } from '@/types';
 
-// Subtítulos y gradientes por categoría
 const CATEGORY_META: Record<string, { subtitle: string; gradient: string; emoji: string }> = {
-  'Chicken Tenders':  { subtitle: 'Tiras de pollo frito crujientes con dip',  gradient: 'from-red-900/80 to-brand-black', emoji: '🍗' },
-  'Chicken Sandwich': { subtitle: 'En pan brioche o Texas toast',              gradient: 'from-orange-900/80 to-brand-black', emoji: '🥪' },
-  'Fries':            { subtitle: 'Papas sazonadas y especiales',              gradient: 'from-yellow-900/80 to-brand-black', emoji: '🍟' },
-  'Bebidas':          { subtitle: 'Refresco o jugo natural',                   gradient: 'from-blue-900/80 to-brand-black',   emoji: '🥤' },
+  'Chicken Tenders':  { subtitle: 'Crujientes y clásicos', gradient: 'from-[#F3E2D3] to-[#FFF7EF]', emoji: '🍗' },
+  'Chicken Sandwich': { subtitle: 'Brioche y sabor',       gradient: 'from-[#F1E0C8] to-[#FFF7EF]', emoji: '🥪' },
+  'Fries':            { subtitle: 'Papas y dips',          gradient: 'from-[#F5E7B8] to-[#FFF7EF]', emoji: '🍟' },
+  'Bebidas':          { subtitle: 'Para acompañar',        gradient: 'from-[#DCEBFF] to-[#FFF7EF]', emoji: '🥤' },
 };
+
+function getCategoryMeta(category: Category, productCount: number) {
+  return CATEGORY_META[category.name] ?? {
+    subtitle: productCount > 1 ? `${productCount} opciones` : 'Una opción',
+    gradient: 'from-[#F4EFE8] to-[#FFF9F2]',
+    emoji: category.emoji,
+  };
+}
 
 export default function MenuPage() {
   const router       = useRouter();
@@ -50,35 +57,34 @@ export default function MenuPage() {
     : [];
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-black">
+    <div className="min-h-screen flex items-center justify-center bg-brand-paper">
       <div className="w-12 h-12 border-4 border-brand-red border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-brand-black">
+    <div className="min-h-screen bg-brand-paper text-brand-ink">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-30 bg-brand-black/95 backdrop-blur border-b border-white/10">
+      <header className="sticky top-0 z-30 bg-brand-paper/95 backdrop-blur border-b border-brand-line/80">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {activeCategory && (
               <button
                 onClick={() => setActiveCategory(null)}
-                className="text-gray-400 hover:text-white transition-colors text-xl mr-1"
+                className="text-brand-muted hover:text-brand-ink transition-colors text-xl mr-1"
               >←</button>
             )}
             <div>
-              <h1 className="text-xl font-black fire-text">Crispy Charles</h1>
-              <p className="text-xs text-gray-400">
-                {deliveryType === 'pickup' ? '🏪 Recoger' : '🛵 Domicilio'}
-                {activeCategory ? ` · ${activeCategory.name}` : ' · Menú'}
+              <h1 className="font-display text-5xl leading-none text-brand-ink">Crispy Charles</h1>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-brand-muted mt-1">
+                {activeCategory ? activeCategory.name : 'Menu'}
               </p>
             </div>
           </div>
           {/* Carrito */}
           <button
             onClick={() => setCartOpen(true)}
-            className="relative flex items-center gap-2 bg-brand-red hover:bg-brand-dark text-white font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95"
+            className="relative flex items-center gap-2 bg-brand-red hover:bg-brand-dark text-white font-bold px-4 py-2.5 rounded-full transition-all active:scale-95 shadow-lg shadow-brand-red/15"
           >
             <span>🛒</span>
             {itemCount > 0 && <span className="font-black">${total()}</span>}
@@ -91,54 +97,46 @@ export default function MenuPage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 pb-28">
+      <main className="max-w-3xl mx-auto px-4 pb-28 pt-4">
 
         {/* ══════ VISTA: GRID DE CATEGORÍAS ══════ */}
         {!activeCategory && (
           <>
             {/* Hero banner */}
-            <div className="my-5 rounded-3xl overflow-hidden bg-gradient-to-r from-brand-red to-brand-orange p-6 flex items-center justify-between">
+            <div className="my-5 rounded-[32px] overflow-hidden bg-gradient-to-r from-[#E63232] to-[#FFB35C] p-6 flex items-end justify-between min-h-[160px] shadow-xl shadow-brand-red/10">
               <div>
-                <p className="text-white/70 text-sm font-medium mb-1">Sabor que cruje 🔥</p>
-                <h2 className="text-3xl font-black text-white leading-tight">
-                  ¿Qué se te<br />antoja hoy?
+                <p className="text-white/80 text-xs uppercase tracking-[0.28em] mb-2">Crispy Charles</p>
+                <h2 className="font-display text-7xl text-white leading-none drop-shadow-sm">
+                  Menu
                 </h2>
               </div>
-              <span className="text-7xl select-none">🍗</span>
+              <span className="text-8xl select-none drop-shadow-lg">🍗</span>
             </div>
 
-            {/* Grid de categorías estilo Raising Cane's */}
-            <h2 className="text-2xl font-black text-white mb-4">MENÚ</h2>
+            <h2 className="text-xs uppercase tracking-[0.3em] text-brand-muted mb-4">Categorias</h2>
             <div className="grid grid-cols-2 gap-4">
               {categories.map(cat => {
-                const meta = CATEGORY_META[cat.name] ?? {
-                  subtitle: '',
-                  gradient: 'from-gray-900/80 to-brand-black',
-                  emoji: cat.emoji,
-                };
                 const catProducts = products.filter(p => p.category_id === cat.id);
+                const meta = getCategoryMeta(cat, catProducts.length);
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat)}
-                    className="group relative bg-brand-card border border-white/5 rounded-3xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.02] hover:border-brand-red/40 hover:shadow-xl hover:shadow-brand-red/10 active:scale-[0.98]"
+                    className="group relative surface-paper rounded-[30px] overflow-hidden text-left transition-all duration-200 hover:scale-[1.01] hover:border-brand-red/30 active:scale-[0.98]"
                   >
-                    {/* Imagen / placeholder */}
-                    <div className={`relative h-40 bg-gradient-to-b ${meta.gradient} flex items-center justify-center`}>
+                    <div className={`relative h-44 bg-gradient-to-br ${meta.gradient} flex items-center justify-center`}>
                       <span className="text-7xl select-none drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
                         {meta.emoji}
                       </span>
-                      {/* Badge de cantidad */}
-                      <span className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full">
-                        {catProducts.length} items
+                      <span className="absolute top-3 right-3 bg-white/70 backdrop-blur-sm text-brand-ink text-[10px] font-bold px-2.5 py-1 rounded-full border border-brand-line">
+                        {catProducts.length}
                       </span>
                     </div>
-                    {/* Info */}
                     <div className="p-4">
-                      <h3 className="font-black text-white text-base uppercase tracking-widest leading-tight">
+                      <h3 className="font-display text-4xl text-brand-ink leading-none">
                         {cat.name}
                       </h3>
-                      <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                      <p className="text-brand-muted text-xs mt-1 uppercase tracking-[0.2em]">
                         {meta.subtitle}
                       </p>
                     </div>
@@ -154,13 +152,13 @@ export default function MenuPage() {
           <div className="pt-5 animate-fade-in">
             {/* Categoría hero */}
             {(() => {
-              const meta = CATEGORY_META[activeCategory.name] ?? { gradient: 'from-gray-900/60 to-brand-black', emoji: activeCategory.emoji, subtitle: '' };
+              const meta = CATEGORY_META[activeCategory.name] ?? { gradient: 'from-[#F4EFE8] to-[#FFF9F2]', emoji: activeCategory.emoji, subtitle: 'Opciones del menú' };
               return (
-                <div className={`rounded-3xl overflow-hidden bg-gradient-to-r ${meta.gradient} p-6 mb-6 flex items-center gap-4`}>
+                <div className={`rounded-[32px] overflow-hidden bg-gradient-to-r ${meta.gradient} p-6 mb-6 flex items-center gap-4 surface-paper`}>
                   <span className="text-6xl">{meta.emoji}</span>
                   <div>
-                    <h2 className="text-2xl font-black text-white uppercase">{activeCategory.name}</h2>
-                    <p className="text-white/60 text-sm mt-0.5">{meta.subtitle}</p>
+                    <h2 className="font-display text-6xl text-brand-ink leading-none">{activeCategory.name}</h2>
+                    <p className="text-brand-muted text-xs uppercase tracking-[0.22em] mt-1">{meta.subtitle}</p>
                   </div>
                 </div>
               );
@@ -181,7 +179,7 @@ export default function MenuPage() {
         <div className="fixed bottom-6 left-0 right-0 px-4 z-20 md:hidden">
           <button
             onClick={() => setCartOpen(true)}
-            className="w-full bg-brand-red text-white font-black py-4 rounded-2xl text-lg shadow-lg shadow-brand-red/30 active:scale-95 transition-all flex items-center justify-between px-6"
+            className="w-full bg-brand-red text-white font-black py-4 rounded-full text-lg shadow-lg shadow-brand-red/20 active:scale-95 transition-all flex items-center justify-between px-6"
           >
             <span className="bg-white/20 rounded-lg px-2 py-0.5 text-sm">{itemCount} items</span>
             <span>Ver carrito</span>
