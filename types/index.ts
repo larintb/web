@@ -66,6 +66,7 @@ export interface Extra {
   id: string;
   name: string;
   price: number;
+  image_url: string | null;
   active: boolean;
   display_order: number;
 }
@@ -126,6 +127,6 @@ export interface CreateOrderPayload {
   delivery_address?: string;
   payment_method: PaymentMethod;
   stripe_payment_intent_id?: string;
-  scheduled_time?: string | null; // null = ahora mismo, string = "HH:MM"
+  scheduled_time?: string | null;
   notes?: string;
 }

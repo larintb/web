@@ -194,9 +194,9 @@ export default function CheckoutPage() {
   const total    = totalFn();
 
   return (
-    <div className="min-h-screen bg-white text-brand-ink">
+    <div className="min-h-screen bg-brand-paper text-brand-ink">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-brand-line/80">
+      <header className="sticky top-0 z-30 bg-brand-paper/95 backdrop-blur border-b border-brand-line/80">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
           <button onClick={() => step === 'info' ? router.back() : setStep(step === 'payment' ? 'extras' : 'info')}
             className="text-brand-muted hover:text-brand-ink transition-colors text-xl">←</button>
@@ -216,7 +216,7 @@ export default function CheckoutPage() {
         {/* STEP 1: Datos del cliente */}
         {step === 'info' && (
           <div className="space-y-4 animate-fade-in">
-            <div className="surface-paper rounded-[28px] p-5 space-y-4 bg-white">
+            <div className="surface-paper rounded-[28px] p-5 space-y-4">
               <div>
                 <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Nombre</label>
               <input
@@ -276,7 +276,7 @@ export default function CheckoutPage() {
               {orderTiming === 'later' && (
                 <div className="mt-3">
                   {timeSlots.length === 0 ? (
-                    <div className="surface-paper rounded-xl px-4 py-3 text-center text-brand-muted text-sm bg-white">
+                    <div className="surface-paper rounded-xl px-4 py-3 text-center text-brand-muted text-sm">
                       No hay horarios disponibles por hoy
                     </div>
                   ) : (
@@ -301,7 +301,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Resumen rápido */}
-            <div className="surface-paper rounded-[28px] p-4 space-y-2 bg-white">
+            <div className="surface-paper rounded-[28px] p-4 space-y-2">
               <p className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-3">Resumen</p>
               {items.map(i => (
                 <div key={`${i.product_id}-${i.variant_name}`} className="flex justify-between text-sm">
@@ -329,7 +329,7 @@ export default function CheckoutPage() {
               {availableExtras.map(e => {
                 const inCart = cartExtras.find(ce => ce.extra_id === e.id);
                 return (
-                  <div key={e.id} className="surface-paper rounded-[24px] p-3 flex flex-col gap-2 bg-white">
+                  <div key={e.id} className="surface-paper rounded-[24px] p-3 flex flex-col gap-2">
                     <div>
                       <p className="text-brand-ink font-semibold text-sm">{e.name}</p>
                       <p className="text-brand-red text-sm font-bold">${e.price}</p>
@@ -379,7 +379,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Total */}
-            <div className="surface-paper rounded-[28px] p-4 bg-white">
+            <div className="surface-paper rounded-[28px] p-4">
               <div className="flex justify-between text-sm text-brand-muted mb-1">
                 <span>Subtotal</span><span>${subtotal}</span>
               </div>
@@ -408,7 +408,7 @@ export default function CheckoutPage() {
         {/* STEP 3: Stripe */}
         {step === 'payment' && paymentMethod === 'stripe' && clientSecret && (
           <div className="animate-fade-in">
-            <div className="surface-paper rounded-[28px] p-4 mb-4 bg-white">
+            <div className="surface-paper rounded-[28px] p-4 mb-4">
               <div className="flex justify-between text-brand-ink font-black text-xl">
                 <span>Total</span><span>${total}</span>
               </div>

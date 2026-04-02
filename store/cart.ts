@@ -9,19 +9,23 @@ interface CartState {
   extras:       CartExtra[];
   deliveryType: DeliveryType | null;
   deliveryFee:  number;
+  tip:          number;
 
   // Delivery type
   setDeliveryType: (type: DeliveryType, fee: number) => void;
 
   // Items
   addItem:    (item: Omit<CartItem, 'subtotal'>) => void;
-  removeItem: (product_id: string, variant_name: string) => void;
-  updateQty:  (product_id: string, variant_name: string, qty: number) => void;
+  removeItem: (product_id: string) => void;
+  updateQty:  (product_id: string, qty: number) => void;
 
   // Extras
-  addExtra:    (extra: Omit<CartExtra, 'subtotal'>) => void;
-  removeExtra: (extra_id: string) => void;
+  addExtra:       (extra: Omit<CartExtra, 'subtotal'>) => void;
+  removeExtra:    (extra_id: string) => void;
   updateExtraQty: (extra_id: string, qty: number) => void;
+
+  // Tip
+  setTip: (amount: number) => void;
 
   // Totals
   subtotal: () => number;
@@ -38,13 +42,13 @@ export const useCart = create<CartState>()(
       extras:       [],
       deliveryType: null,
       deliveryFee:  0,
+      tip:          0,
 
       setDeliveryType: (type, fee) => set({ deliveryType: type, deliveryFee: fee }),
 
       addItem: (incoming) => {
         const { items } = get();
-        const key = (i: CartItem) => `${i.product_id}__${i.variant_name}`;
-        const idx = items.findIndex(i => key(i) === `${incoming.product_id}__${incoming.variant_name}`);
+        const idx = items.findIndex(i => i.product_id === incoming.product_id && i.variant_name === incoming.variant_name);
         if (idx >= 0) {
           const updated = [...items];
           updated[idx] = {
@@ -58,13 +62,13 @@ export const useCart = create<CartState>()(
         }
       },
 
-      removeItem: (product_id, variant_name) => set(s => ({
-        items: s.items.filter(i => !(i.product_id === product_id && i.variant_name === variant_name)),
+      removeItem: (product_id) => set(s => ({
+        items: s.items.filter(i => i.product_id !== product_id),
       })),
 
-      updateQty: (product_id, variant_name, qty) => set(s => ({
+      updateQty: (product_id, qty) => set(s => ({
         items: s.items.map(i =>
-          i.product_id === product_id && i.variant_name === variant_name
+          i.product_id === product_id
             ? { ...i, qty, subtotal: qty * i.unit_price }
             : i
         ).filter(i => i.qty > 0),
@@ -98,6 +102,8 @@ export const useCart = create<CartState>()(
         ).filter(e => e.qty > 0),
       })),
 
+      setTip: (amount) => set({ tip: amount }),
+
       subtotal: () => {
         const { items, extras } = get();
         return (
@@ -106,9 +112,9 @@ export const useCart = create<CartState>()(
         );
       },
 
-      total: () => get().subtotal() + get().deliveryFee,
+      total: () => get().subtotal() + get().deliveryFee + get().tip,
 
-      clear: () => set({ items: [], extras: [], deliveryType: null, deliveryFee: 0 }),
+      clear: () => set({ items: [], extras: [], deliveryType: null, deliveryFee: 0, tip: 0 }),
     }),
     { name: 'crispy-cart' }
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useCart } from '@/store/cart';
 import type { Settings } from '@/types';
@@ -53,9 +54,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-paper px-6">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="font-display text-6xl leading-none text-brand-ink">Crispy Charles</h1>
-          <span className="text-4xl">🍗</span>
+        <div className="mb-8 flex justify-center">
+          <Image src="/images/logo.png" alt="Crispy Charles" width={200} height={100} className="object-contain" />
         </div>
 
         <div className="w-full space-y-4">
