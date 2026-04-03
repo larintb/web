@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Order, Settings, OrderStatus, Session, SessionSummary } from '@/types';
@@ -21,10 +21,10 @@ const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
-  new:       'bg-blue-500/20 border-blue-500/40 text-blue-300',
-  preparing: 'bg-orange-500/20 border-orange-500/40 text-orange-300',
-  ready:     'bg-green-500/20 border-green-500/40 text-green-300',
-  delivered: 'bg-gray-500/20 border-gray-500/40 text-gray-400',
+  new:       'bg-blue-50 border-blue-200 text-blue-700',
+  preparing: 'bg-orange-50 border-orange-200 text-brand-orange',
+  ready:     'bg-green-50 border-green-200 text-green-700',
+  delivered: 'bg-gray-50 border-brand-line text-brand-muted',
 };
 
 function fmt(date: string) {
@@ -93,13 +93,13 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
   return (
     <div className="space-y-4">
       {/* Periodo */}
-      <div className="bg-brand-gray rounded-2xl p-4">
-        <p className="text-xs text-gray-400 mb-1">Periodo</p>
-        <p className="text-white font-semibold">{fmt(session.opened_at)}</p>
+      <div className="surface-paper rounded-2xl p-4">
+        <p className="text-xs text-brand-muted uppercase tracking-[0.2em] mb-1">Periodo</p>
+        <p className="text-brand-ink font-semibold">{fmt(session.opened_at)}</p>
         {session.closed_at && (
           <>
-            <p className="text-gray-400 text-xs my-0.5">→</p>
-            <p className="text-white font-semibold">{fmt(session.closed_at)}</p>
+            <p className="text-brand-muted text-xs my-0.5">→</p>
+            <p className="text-brand-ink font-semibold">{fmt(session.closed_at)}</p>
             <p className="text-xs text-brand-orange mt-1">⏱ Duración: {duration(session.opened_at, session.closed_at)}</p>
           </>
         )}
@@ -107,34 +107,34 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-xs text-gray-400 mb-1">Total órdenes</p>
-          <p className="text-3xl font-black text-white">{summary.total_orders}</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">Total órdenes</p>
+          <p className="text-3xl font-black text-brand-ink">{summary.total_orders}</p>
         </div>
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-xs text-gray-400 mb-1">Ingresos totales</p>
-          <p className="text-3xl font-black text-green-400">${summary.total_revenue}</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">Ingresos totales</p>
+          <p className="text-3xl font-black text-green-600">${summary.total_revenue}</p>
         </div>
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-xs text-gray-400 mb-1">💵 Efectivo en caja</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">💵 Efectivo</p>
           <p className="text-2xl font-black text-brand-orange">${summary.cash_revenue}</p>
         </div>
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-xs text-gray-400 mb-1">💳 Cobrado en Stripe</p>
-          <p className="text-2xl font-black text-blue-400">${summary.stripe_revenue}</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Tarjeta</p>
+          <p className="text-2xl font-black text-blue-600">${summary.stripe_revenue}</p>
         </div>
         {summary.delivery_fees > 0 && (
-          <div className="bg-brand-gray rounded-2xl p-4 col-span-2">
-            <p className="text-xs text-gray-400 mb-1">🛵 Costo de envíos</p>
-            <p className="text-xl font-black text-white">${summary.delivery_fees}</p>
+          <div className="surface-paper rounded-2xl p-4 col-span-2">
+            <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">🛵 Costo de envíos</p>
+            <p className="text-xl font-black text-brand-ink">${summary.delivery_fees}</p>
           </div>
         )}
       </div>
 
       {/* Productos vendidos */}
       {summary.items_sold.length > 0 && (
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-sm font-bold text-white mb-3">🍗 Productos vendidos</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-sm font-bold text-brand-ink mb-3">🍗 Productos vendidos</p>
           <div className="space-y-2">
             {summary.items_sold.map((item, i) => (
               <div key={i} className="flex justify-between items-center">
@@ -142,9 +142,9 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
                   <span className="text-xs bg-brand-red text-white rounded-full w-6 h-6 flex items-center justify-center font-bold flex-shrink-0">
                     {item.qty}
                   </span>
-                  <span className="text-gray-300 text-sm">{item.name}</span>
+                  <span className="text-brand-ink text-sm">{item.name}</span>
                 </div>
-                <span className="text-white font-semibold text-sm">${item.revenue}</span>
+                <span className="text-brand-ink font-semibold text-sm">${item.revenue}</span>
               </div>
             ))}
           </div>
@@ -153,8 +153,8 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
 
       {/* Extras vendidos */}
       {summary.extras_sold.length > 0 && (
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-sm font-bold text-white mb-3">➕ Extras vendidos</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-sm font-bold text-brand-ink mb-3">➕ Extras vendidos</p>
           <div className="space-y-2">
             {summary.extras_sold.map((e, i) => (
               <div key={i} className="flex justify-between items-center">
@@ -162,9 +162,9 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
                   <span className="text-xs bg-brand-orange text-white rounded-full w-6 h-6 flex items-center justify-center font-bold flex-shrink-0">
                     {e.qty}
                   </span>
-                  <span className="text-gray-300 text-sm">{e.name}</span>
+                  <span className="text-brand-ink text-sm">{e.name}</span>
                 </div>
-                <span className="text-white font-semibold text-sm">${e.revenue}</span>
+                <span className="text-brand-ink font-semibold text-sm">${e.revenue}</span>
               </div>
             ))}
           </div>
@@ -173,17 +173,17 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
 
       {/* Detalle de órdenes */}
       {summary.orders_snapshot.length > 0 && (
-        <div className="bg-brand-gray rounded-2xl p-4">
-          <p className="text-sm font-bold text-white mb-3">📋 Detalle de órdenes</p>
+        <div className="surface-paper rounded-2xl p-4">
+          <p className="text-sm font-bold text-brand-ink mb-3">📋 Detalle de órdenes</p>
           <div className="space-y-1.5">
             {summary.orders_snapshot.map((o, i) => (
               <div key={i} className="flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-gray-500">#{o.id.slice(0,6).toUpperCase()}</span>
-                  <span className="text-gray-300">{o.customer_name}</span>
+                  <span className="font-mono text-xs text-brand-muted">#{o.id.slice(0,6).toUpperCase()}</span>
+                  <span className="text-brand-ink">{o.customer_name}</span>
                   <span className="text-xs">{o.payment_method === 'cash' ? '💵' : '💳'}</span>
                 </div>
-                <span className="text-white font-bold">${o.total}</span>
+                <span className="text-brand-ink font-bold">${o.total}</span>
               </div>
             ))}
           </div>
@@ -341,16 +341,16 @@ export default function AdminPage() {
   const newCount = sessionOrders.filter(o => o.status === 'new').length;
 
   return (
-    <div className="min-h-screen bg-brand-black">
+    <div className="min-h-screen bg-brand-paper text-brand-ink">
 
       {/* ── Modal de resumen al cerrar ── */}
       {showSummaryModal && closingSummary && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-brand-black border border-white/10 rounded-3xl w-full max-w-lg my-6 p-6">
+        <div className="fixed inset-0 z-50 bg-brand-dark/30 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="surface-paper rounded-3xl w-full max-w-lg my-6 p-6">
             <div className="text-center mb-6">
               <p className="text-4xl mb-2">🔒</p>
-              <h2 className="text-2xl font-black">Resumen del día</h2>
-              <p className="text-gray-400 text-sm mt-1">El negocio ha cerrado</p>
+              <h2 className="font-display text-6xl text-brand-ink leading-none">Resumen del día</h2>
+              <p className="text-brand-muted text-sm mt-1">El negocio ha cerrado</p>
             </div>
             {sessions[0] && <SummaryView summary={closingSummary} session={sessions[0]} />}
             <button
@@ -365,23 +365,23 @@ export default function AdminPage() {
 
       {/* ── Modal de detalle de sesión ── */}
       {selectedSession && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-brand-black border border-white/10 rounded-3xl w-full max-w-lg my-6 p-6">
+        <div className="fixed inset-0 z-50 bg-brand-dark/30 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="surface-paper rounded-3xl w-full max-w-lg my-6 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black">Reporte de sesión</h2>
-              <button onClick={() => setSelectedSession(null)} className="text-gray-400 hover:text-white text-2xl">×</button>
+              <h2 className="font-display text-5xl text-brand-ink leading-none">Reporte de sesión</h2>
+              <button onClick={() => setSelectedSession(null)} className="text-brand-muted hover:text-brand-ink text-2xl">×</button>
             </div>
             {selectedSession.summary
               ? <SummaryView summary={selectedSession.summary} session={selectedSession} />
               : (
-                <div className="text-center py-10 text-gray-500">
+                <div className="text-center py-10 text-brand-muted">
                   <p className="text-3xl mb-2">🟢</p>
                   <p>Sesión activa — cierra el negocio para ver el resumen</p>
                   {(() => {
                     const liveSummary = buildSummary(sessionOrders);
                     return (
                       <div className="mt-6 text-left">
-                        <p className="text-xs text-gray-500 mb-3 text-center">Vista previa en tiempo real</p>
+                        <p className="text-xs text-brand-muted mb-3 text-center uppercase tracking-[0.2em]">Vista previa en tiempo real</p>
                         <SummaryView summary={liveSummary} session={selectedSession} />
                       </div>
                     );
@@ -394,15 +394,15 @@ export default function AdminPage() {
       )}
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-30 bg-brand-black/95 backdrop-blur border-b border-white/10">
+      <header className="sticky top-0 z-30 bg-brand-paper/95 backdrop-blur border-b border-brand-line/80">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🍗</span>
             <div>
-              <h1 className="text-lg font-black">Crispy Charles</h1>
-              {saving && <p className="text-xs text-gray-400">Guardando...</p>}
+              <h1 className="font-display text-4xl text-brand-ink leading-none">Crispy Charles</h1>
+              {saving && <p className="text-xs text-brand-muted">Guardando...</p>}
               {currentSession && !saving && (
-                <p className="text-xs text-green-400">
+                <p className="text-xs text-green-600 font-semibold">
                   Abierto desde {fmtTime(currentSession.opened_at)} · {duration(currentSession.opened_at, null)}
                 </p>
               )}
@@ -412,16 +412,16 @@ export default function AdminPage() {
             <button
               disabled={saving}
               onClick={handleBusinessToggle}
-              className={`flex items-center gap-2 rounded-xl px-3 py-2 transition-all disabled:opacity-60 ${settings?.business_open ? 'bg-green-500/20 hover:bg-green-500/30' : 'bg-gray-700 hover:bg-gray-600'}`}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 transition-all disabled:opacity-60 ${settings?.business_open ? 'bg-green-100 hover:bg-green-200' : 'bg-brand-line/60 hover:bg-brand-line'}`}
             >
-              <span className="text-sm font-semibold text-gray-200">
+              <span className={`text-sm font-semibold ${settings?.business_open ? 'text-green-700' : 'text-brand-muted'}`}>
                 {saving ? '...' : settings?.business_open ? '🟢 Abierto' : '🔴 Cerrado'}
               </span>
-              <div className={`relative w-11 h-6 rounded-full overflow-hidden transition-colors duration-200 ${settings?.business_open ? 'bg-green-500' : 'bg-gray-500'}`}>
+              <div className={`relative w-11 h-6 rounded-full overflow-hidden transition-colors duration-200 ${settings?.business_open ? 'bg-green-500' : 'bg-brand-line'}`}>
                 <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${settings?.business_open ? 'left-6' : 'left-1'}`} />
               </div>
             </button>
-            <button onClick={logout} className="text-gray-400 hover:text-white text-sm transition-colors">Salir →</button>
+            <button onClick={logout} className="text-brand-muted hover:text-brand-ink text-sm transition-colors font-semibold">Salir →</button>
           </div>
         </div>
 
@@ -429,7 +429,7 @@ export default function AdminPage() {
         <div className="max-w-5xl mx-auto px-4 pb-3 flex gap-1">
           {(['orders', 'reports', 'settings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${tab === t ? 'bg-brand-red text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${tab === t ? 'bg-brand-red text-white' : 'text-brand-muted hover:text-brand-ink'}`}
             >
               {t === 'orders'   && <>Órdenes {newCount > 0 && <span className="ml-1 bg-brand-orange text-white text-xs rounded-full px-1.5">{newCount}</span>}</>}
               {t === 'reports'  && '📊 Reportes'}
@@ -447,7 +447,7 @@ export default function AdminPage() {
             <div className="flex gap-2 flex-wrap mb-6">
               {(['all', 'new', 'preparing', 'ready', 'delivered'] as const).map(f => (
                 <button key={f} onClick={() => setFilter(f)}
-                  className={`text-sm px-4 py-1.5 rounded-full font-semibold transition-all ${filter === f ? 'bg-brand-red text-white' : 'bg-brand-gray text-gray-400 hover:text-white'}`}
+                  className={`text-sm px-4 py-1.5 rounded-full font-semibold transition-all ${filter === f ? 'bg-brand-red text-white' : 'bg-white border border-brand-line text-brand-muted hover:text-brand-ink'}`}
                 >
                   {f === 'all' ? 'Todas' : STATUS_LABELS[f as OrderStatus]}
                 </button>
@@ -455,13 +455,13 @@ export default function AdminPage() {
             </div>
 
             {!currentSession ? (
-              <div className="text-center py-20 text-gray-500">
+              <div className="text-center py-20 text-brand-muted">
                 <p className="text-4xl mb-3">🔒</p>
-                <p className="font-semibold text-gray-400">El negocio está cerrado</p>
+                <p className="font-semibold text-brand-ink">El negocio está cerrado</p>
                 <p className="text-sm mt-1">Abre el negocio para empezar a recibir órdenes</p>
               </div>
             ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-20 text-gray-500">
+              <div className="text-center py-20 text-brand-muted">
                 <p className="text-4xl mb-3">🍽️</p>
                 <p>Sin órdenes {filter !== 'all' ? `"${STATUS_LABELS[filter as OrderStatus]}"` : 'en esta sesión aún'}</p>
               </div>
@@ -478,7 +478,7 @@ export default function AdminPage() {
                               #{order.id.slice(0, 6).toUpperCase()}
                             </span>
                             {isDelivered && (
-                              <span className="text-xs bg-gray-600 text-gray-300 font-bold px-2 py-0.5 rounded-full">✓ Completada</span>
+                              <span className="text-xs bg-brand-line text-brand-muted font-bold px-2 py-0.5 rounded-full">✓ Completada</span>
                             )}
                           </div>
                           <p className={`text-sm opacity-80 mt-0.5 ${isDelivered ? 'line-through' : ''}`}>
@@ -521,40 +521,39 @@ export default function AdminPage() {
           <div>
             {/* Sesión activa en vivo */}
             {currentSession && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-5 mb-6">
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <p className="font-black text-green-400">Sesión activa</p>
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <p className="font-black text-green-700">Sesión activa</p>
                     </div>
-                    <p className="text-sm text-gray-400 mt-0.5">
+                    <p className="text-sm text-brand-muted mt-0.5">
                       Abierto {fmt(currentSession.opened_at)} · {duration(currentSession.opened_at, null)}
                     </p>
                   </div>
                   <button
                     onClick={() => setSelectedSession(currentSession)}
-                    className="text-sm bg-green-500/20 hover:bg-green-500/40 text-green-300 px-3 py-1.5 rounded-lg font-semibold transition-colors"
+                    className="text-sm bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg font-semibold transition-colors"
                   >
                     Ver en vivo →
                   </button>
                 </div>
-                {/* Mini KPIs live */}
                 {(() => {
                   const live = buildSummary(sessionOrders);
                   return (
                     <div className="grid grid-cols-3 gap-2 mt-3">
-                      <div className="bg-brand-black/40 rounded-xl p-3 text-center">
-                        <p className="text-2xl font-black text-white">{live.total_orders}</p>
-                        <p className="text-xs text-gray-400">órdenes</p>
+                      <div className="bg-white/70 rounded-xl p-3 text-center">
+                        <p className="text-2xl font-black text-brand-ink">{live.total_orders}</p>
+                        <p className="text-xs text-brand-muted">órdenes</p>
                       </div>
-                      <div className="bg-brand-black/40 rounded-xl p-3 text-center">
+                      <div className="bg-white/70 rounded-xl p-3 text-center">
                         <p className="text-2xl font-black text-brand-orange">${live.cash_revenue}</p>
-                        <p className="text-xs text-gray-400">💵 efectivo</p>
+                        <p className="text-xs text-brand-muted">💵 efectivo</p>
                       </div>
-                      <div className="bg-brand-black/40 rounded-xl p-3 text-center">
-                        <p className="text-2xl font-black text-blue-400">${live.stripe_revenue}</p>
-                        <p className="text-xs text-gray-400">💳 tarjeta</p>
+                      <div className="bg-white/70 rounded-xl p-3 text-center">
+                        <p className="text-2xl font-black text-blue-600">${live.stripe_revenue}</p>
+                        <p className="text-xs text-brand-muted">💳 tarjeta</p>
                       </div>
                     </div>
                   );
@@ -563,9 +562,9 @@ export default function AdminPage() {
             )}
 
             {/* Historial de sesiones */}
-            <h2 className="text-lg font-black mb-4 text-white">Historial de turnos</h2>
+            <h2 className="font-display text-5xl text-brand-ink leading-none mb-4">Historial de turnos</h2>
             {sessions.filter(s => s.closed_at).length === 0 && !currentSession ? (
-              <div className="text-center py-20 text-gray-500">
+              <div className="text-center py-20 text-brand-muted">
                 <p className="text-4xl mb-3">📊</p>
                 <p>Aún no hay reportes guardados</p>
                 <p className="text-sm mt-1">Se generan automáticamente al cerrar el negocio</p>
@@ -578,28 +577,28 @@ export default function AdminPage() {
                     <button
                       key={session.id}
                       onClick={() => setSelectedSession(session)}
-                      className="w-full bg-brand-gray hover:bg-brand-card border border-white/10 hover:border-brand-red/40 rounded-2xl p-5 text-left transition-all duration-200"
+                      className="w-full surface-paper hover:border-brand-red/40 rounded-2xl p-5 text-left transition-all duration-200"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <p className="font-bold text-white">
+                          <p className="font-bold text-brand-ink">
                             {new Date(session.opened_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
                           </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-xs text-brand-muted mt-0.5">
                             {fmtTime(session.opened_at)} – {fmtTime(session.closed_at!)} · {duration(session.opened_at, session.closed_at)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xl font-black text-green-400">${s.total_revenue}</p>
-                          <p className="text-xs text-gray-400">{s.total_orders} órdenes</p>
+                          <p className="text-xl font-black text-green-600">${s.total_revenue}</p>
+                          <p className="text-xs text-brand-muted">{s.total_orders} órdenes</p>
                         </div>
                       </div>
                       <div className="flex gap-3 text-sm">
                         <span className="text-brand-orange font-semibold">💵 ${s.cash_revenue}</span>
-                        <span className="text-blue-400 font-semibold">💳 ${s.stripe_revenue}</span>
-                        {s.delivery_fees > 0 && <span className="text-gray-400">🛵 ${s.delivery_fees}</span>}
+                        <span className="text-blue-600 font-semibold">💳 ${s.stripe_revenue}</span>
+                        {s.delivery_fees > 0 && <span className="text-brand-muted">🛵 ${s.delivery_fees}</span>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 text-right">Ver reporte completo →</p>
+                      <p className="text-xs text-brand-muted mt-2 text-right">Ver reporte completo →</p>
                     </button>
                   );
                 })}
@@ -609,21 +608,21 @@ export default function AdminPage() {
             {/* Todas las órdenes */}
             {orders.length > 0 && (
               <div className="mt-8">
-                <h2 className="text-lg font-black mb-4 text-white">Todas las órdenes</h2>
+                <h2 className="font-display text-5xl text-brand-ink leading-none mb-4">Todas las órdenes</h2>
                 <div className="space-y-2">
                   {orders.map(o => (
-                    <div key={o.id} className="bg-brand-gray rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <div key={o.id} className="surface-paper rounded-xl px-4 py-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="font-mono text-xs text-gray-500 flex-shrink-0">#{o.id.slice(0,6).toUpperCase()}</span>
+                        <span className="font-mono text-xs text-brand-muted flex-shrink-0">#{o.id.slice(0,6).toUpperCase()}</span>
                         <div className="min-w-0">
-                          <p className="text-white text-sm font-semibold truncate">{o.customer_name}</p>
-                          <p className="text-gray-400 text-xs">{fmt(o.created_at)}</p>
+                          <p className="text-brand-ink text-sm font-semibold truncate">{o.customer_name}</p>
+                          <p className="text-brand-muted text-xs">{fmt(o.created_at)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-brand-black text-gray-400">{STATUS_LABELS[o.status]}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-brand-line text-brand-muted">{STATUS_LABELS[o.status]}</span>
                         <span className="text-xs">{o.payment_method === 'cash' ? '💵' : '💳'}</span>
-                        <span className="text-white font-bold text-sm">${o.total}</span>
+                        <span className="text-brand-ink font-bold text-sm">${o.total}</span>
                       </div>
                     </div>
                   ))}
@@ -636,52 +635,53 @@ export default function AdminPage() {
         {/* ══════════════ TAB: CONFIGURACIÓN ══════════════ */}
         {tab === 'settings' && settings && (
           <div className="space-y-4 max-w-lg">
-            <div className="bg-brand-gray rounded-2xl p-5">
-              <h3 className="font-bold mb-4">Opciones de entrega</h3>
+            <div className="surface-paper rounded-2xl p-5">
+              <h3 className="font-display text-4xl text-brand-ink leading-none mb-4">Opciones de entrega</h3>
               <div className="space-y-3">
                 {([['pickup_enabled', '🏪 Recoger en tienda', 'Clientes recogen su pedido'], ['delivery_enabled', '🛵 Domicilio', `Costo: $${settings.delivery_fee} MXN`]] as const).map(([key, label, sub]) => (
                   <div key={key} className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold">{label}</p>
-                      <p className="text-xs text-gray-400">{sub}</p>
+                      <p className="font-semibold text-brand-ink">{label}</p>
+                      <p className="text-xs text-brand-muted">{sub}</p>
                     </div>
                     <button
                       onClick={() => toggleSetting(key, !settings[key])}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${settings[key] ? 'bg-green-500' : 'bg-gray-600'}`}
+                      disabled={saving}
+                      className={`relative w-12 h-6 rounded-full transition-all duration-200 ${settings[key] ? 'bg-brand-orange' : 'bg-brand-line'}`}
                     >
-                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${settings[key] ? 'translate-x-7' : 'translate-x-1'}`} />
+                      <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${settings[key] ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-brand-gray rounded-2xl p-5">
-              <h3 className="font-bold mb-3">Horarios de atención</h3>
+            <div className="surface-paper rounded-2xl p-5">
+              <h3 className="font-display text-4xl text-brand-ink leading-none mb-3">Horarios de atención</h3>
               <input type="text" value={settings.business_hours}
                 onChange={e => setSettings({ ...settings, business_hours: e.target.value })}
                 onBlur={e => toggleSetting('business_hours', e.target.value)}
-                className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-red transition-colors"
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors"
               />
             </div>
 
-            <div className="bg-brand-gray rounded-2xl p-5">
-              <h3 className="font-bold mb-3">Mensaje cuando estamos cerrados</h3>
-              <p className="text-xs text-gray-400 mb-2">Se envía por WhatsApp a quien nos escriba estando cerrados</p>
+            <div className="surface-paper rounded-2xl p-5">
+              <h3 className="font-display text-4xl text-brand-ink leading-none mb-2">Mensaje al cerrar</h3>
+              <p className="text-xs text-brand-muted mb-3">Se envía por WhatsApp a quien nos escriba estando cerrados</p>
               <textarea value={settings.closed_message}
                 onChange={e => setSettings({ ...settings, closed_message: e.target.value })}
                 onBlur={e => toggleSetting('closed_message', e.target.value)}
                 rows={4}
-                className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-red transition-colors resize-none"
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors resize-none"
               />
             </div>
 
-            <div className="bg-brand-gray rounded-2xl p-5">
-              <h3 className="font-bold mb-3">Costo de domicilio (MXN)</h3>
+            <div className="surface-paper rounded-2xl p-5">
+              <h3 className="font-display text-4xl text-brand-ink leading-none mb-3">Costo de domicilio (MXN)</h3>
               <input type="number" value={settings.delivery_fee}
                 onChange={e => setSettings({ ...settings, delivery_fee: Number(e.target.value) })}
                 onBlur={e => toggleSetting('delivery_fee', Number(e.target.value))}
-                className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-red transition-colors"
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors"
               />
             </div>
           </div>

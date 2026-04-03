@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { imgUrl } from '@/lib/image-url';
 
 export default function AdminLoginPage() {
   const router   = useRouter();
@@ -29,33 +31,33 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-black flex items-center justify-center px-4">
+    <div className="min-h-screen bg-brand-paper flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-10">
-          <p className="text-5xl mb-3">🍗</p>
-          <h1 className="text-3xl font-black fire-text">Crispy Charles</h1>
-          <p className="text-gray-400 mt-1">Panel de administrador</p>
+          <Image src={imgUrl('logo.png')!} alt="Crispy Charles" width={160} height={64} className="object-contain mx-auto mb-4" />
+          <p className="text-xs uppercase tracking-[0.28em] text-brand-muted">Panel de administrador</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Email</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              required
-              className="w-full bg-brand-gray border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-red transition-colors"
-              placeholder="admin@crispycharles.com"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Contraseña</label>
-            <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)}
-              required
-              className="w-full bg-brand-gray border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-red transition-colors"
-              placeholder="••••••••"
-            />
+          <div className="surface-paper rounded-[28px] p-5 space-y-4">
+            <div>
+              <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Email</label>
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                required
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
+                placeholder="admin@crispycharles.com"
+              />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Contraseña</label>
+              <input
+                type="password" value={password} onChange={e => setPassword(e.target.value)}
+                required
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
           {error && (
@@ -67,7 +69,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full text-lg mt-2"
+            className="btn-primary w-full text-lg"
           >
             {loading ? 'Entrando...' : 'Entrar al panel'}
           </button>

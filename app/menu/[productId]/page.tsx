@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useCart } from '@/store/cart';
 import { getIngredientData } from '@/lib/product-ingredients';
+import { imgUrl } from '@/lib/image-url';
 import type { Product, Extra, ProductVariant } from '@/types';
 
 export default function ProductDetailPage() {
@@ -78,7 +79,7 @@ export default function ProductDetailPage() {
       <div className="relative w-full bg-gradient-to-br from-[#F3E2D3] to-[#FFF7EF]"
         style={{ height: 'min(56vw, 400px)', minHeight: 220 }}>
         {product.image_url ? (
-          <Image src={product.image_url} alt={product.name} fill className="object-cover" priority />
+          <Image src={imgUrl(product.image_url)!} alt={product.name} fill className="object-cover" priority />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-9xl select-none">🍗</div>
         )}
@@ -177,7 +178,7 @@ export default function ProductDetailPage() {
                     {/* Icono del extra */}
                     <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] flex-shrink-0">
                       {extra.image_url ? (
-                        <Image src={extra.image_url} alt={extra.name} width={56} height={56} className="w-full h-full object-cover" />
+                        <Image src={imgUrl(extra.image_url)!} alt={extra.name} width={56} height={56} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-2xl">🍶</div>
                       )}

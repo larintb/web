@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getIngredientData } from '@/lib/product-ingredients';
+import { imgUrl } from '@/lib/image-url';
 import type { Product } from '@/types';
 
 interface Props {
@@ -24,7 +25,7 @@ export default function ProductCard({ product }: Props) {
       {/* Imagen */}
       <div className="relative h-44 bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] overflow-hidden">
         {product.image_url ? (
-          <Image src={product.image_url} alt={product.name} fill className="object-cover" />
+          <Image src={imgUrl(product.image_url)!} alt={product.name} fill className="object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-6xl select-none">🍗</div>
         )}

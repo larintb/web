@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useCart } from '@/store/cart';
+import { imgUrl } from '@/lib/image-url';
 import PhoneInput from '@/components/PhoneInput';
 import type { Extra } from '@/types';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 // ── Formulario embebido de Stripe ──────────────────────────────────────────
-function StripeForm({ clientSecret, orderData, onSuccess }: {
-  clientSecret: string;
+function StripeForm({ orderData, onSuccess }: {
   orderData: Record<string, unknown>;
   onSuccess: (orderId: string) => void;
 }) {
@@ -21,7 +22,6 @@ function StripeForm({ clientSecret, orderData, onSuccess }: {
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error,      setError]      = useState('');
-  const clear = useCart(s => s.clear);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,14 +41,12 @@ function StripeForm({ clientSecret, orderData, onSuccess }: {
     }
 
     if (paymentIntent?.status === 'succeeded') {
-      // Crear la orden en Supabase
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...orderData, stripe_payment_intent_id: paymentIntent.id }),
       });
       const { order } = await res.json();
-      clear();
       onSuccess(order.id);
     }
   }
@@ -74,7 +72,6 @@ function StripeForm({ clientSecret, orderData, onSuccess }: {
 export default function CheckoutPage() {
   const router       = useRouter();
   const items        = useCart(s => s.items);
-  const extras       = useCart(s => s.extras);
   const subtotalFn   = useCart(s => s.subtotal);
   const totalFn      = useCart(s => s.total);
   const deliveryType = useCart(s => s.deliveryType);
@@ -85,9 +82,9 @@ export default function CheckoutPage() {
   const clear        = useCart(s => s.clear);
 
   const [step,            setStep]            = useState<'info' | 'extras' | 'payment'>('info');
+  const [submitted,       setSubmitted]       = useState(false);
   const [availableExtras, setAvailableExtras] = useState<Extra[]>([]);
   const [paymentMethod,   setPaymentMethod]   = useState<'stripe' | 'cash'>('stripe');
-  const [clientSecret,    setClientSecret]    = useState('');
   const [name,            setName]            = useState('');
   const [phone,           setPhone]           = useState('');
   const [address,         setAddress]         = useState('');
@@ -99,6 +96,7 @@ export default function CheckoutPage() {
   const [timeSlots,       setTimeSlots]       = useState<string[]>([]);
 
   useEffect(() => {
+    if (submitted) return;
     if (!deliveryType || items.length === 0) { router.replace('/'); return; }
     const supabase = createClient();
 
@@ -113,7 +111,7 @@ export default function CheckoutPage() {
       const closingStr = match?.[2] ?? '22:00';
       setTimeSlots(generateSlots(closingStr));
     });
-  }, [deliveryType, items, router]);
+  }, [submitted, deliveryType, items, router]);
 
   // Genera franjas de 20 min desde ahora+20min hasta hora de cierre
   function generateSlots(closingTime: string): string[] {
@@ -184,11 +182,12 @@ export default function CheckoutPage() {
       body: JSON.stringify(buildOrderData('cash')),
     });
     const { order } = await res.json();
+    setSubmitted(true);
     clear();
     router.push(`/order/${order.id}`);
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !submitted) return null;
 
   const subtotal = subtotalFn();
   const total    = totalFn();
@@ -325,30 +324,38 @@ export default function CheckoutPage() {
         {step === 'extras' && (
           <div className="space-y-4 animate-fade-in">
             <p className="text-brand-muted text-sm">Extras opcionales</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-0">
               {availableExtras.map(e => {
                 const inCart = cartExtras.find(ce => ce.extra_id === e.id);
                 return (
-                  <div key={e.id} className="surface-paper rounded-[24px] p-3 flex flex-col gap-2">
-                    <div>
-                      <p className="text-brand-ink font-semibold text-sm">{e.name}</p>
-                      <p className="text-brand-red text-sm font-bold">${e.price}</p>
+                  <div key={e.id} className="flex items-center gap-3 py-3.5 border-b border-brand-line last:border-0">
+                    {/* Icono */}
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] flex-shrink-0">
+                      {e.image_url ? (
+                        <Image src={imgUrl(e.image_url)!} alt={e.name} width={48} height={48} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">🍶</div>
+                      )}
                     </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-brand-ink font-semibold text-sm leading-tight">{e.name}</p>
+                      <p className="text-brand-red text-sm font-bold">+${e.price}</p>
+                    </div>
+                    {/* Qty control */}
                     {inCart ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button onClick={() => removeExtra(e.id)}
-                          className="w-7 h-7 rounded-full bg-white border border-brand-line text-brand-ink font-bold flex items-center justify-center">−</button>
-                        <span className="text-brand-ink font-bold flex-1 text-center">{inCart.qty}</span>
+                          className="w-8 h-8 rounded-full bg-white border border-brand-line text-brand-ink font-bold flex items-center justify-center">−</button>
+                        <span className="text-brand-ink font-black text-sm w-4 text-center">{inCart.qty}</span>
                         <button onClick={() => addExtra({ extra_id: e.id, extra_name: e.name, qty: 1, unit_price: e.price })}
-                          className="w-7 h-7 rounded-full bg-brand-red text-white font-bold flex items-center justify-center">+</button>
+                          className="w-8 h-8 rounded-full bg-brand-red text-white font-bold flex items-center justify-center">+</button>
                       </div>
                     ) : (
                       <button
                         onClick={() => addExtra({ extra_id: e.id, extra_name: e.name, qty: 1, unit_price: e.price })}
-                        className="w-full text-xs bg-white hover:bg-brand-red hover:text-white text-brand-ink py-1.5 rounded-lg font-semibold transition-colors border border-brand-line"
-                      >
-                        Agregar
-                      </button>
+                        className="w-8 h-8 rounded-full border-2 border-brand-line bg-white text-brand-muted font-bold flex items-center justify-center hover:border-brand-red hover:text-brand-red transition-all text-xl leading-none flex-shrink-0"
+                      >+</button>
                     )}
                   </div>
                 );
@@ -415,9 +422,8 @@ export default function CheckoutPage() {
             </div>
             <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
               <StripeForm
-                clientSecret={clientSecret}
                 orderData={buildOrderData('stripe')}
-                onSuccess={id => router.push(`/order/${id}`)}
+                onSuccess={id => { setSubmitted(true); clear(); router.push(`/order/${id}`); }}
               />
             </Elements>
           </div>

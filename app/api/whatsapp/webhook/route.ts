@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { sendText, buildWelcomeMessage, toChatId } from '@/lib/whapi';
+import { sendText, buildWelcomeMessage } from '@/lib/whapi';
 
 // whapi.cloud llama a esta ruta cuando llega un mensaje
 export async function POST(req: NextRequest) {
