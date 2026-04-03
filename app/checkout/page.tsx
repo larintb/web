@@ -85,6 +85,7 @@ export default function CheckoutPage() {
   const [submitted,       setSubmitted]       = useState(false);
   const [availableExtras, setAvailableExtras] = useState<Extra[]>([]);
   const [paymentMethod,   setPaymentMethod]   = useState<'stripe' | 'cash'>('stripe');
+  const [clientSecret,    setClientSecret]    = useState('');
   const [name,            setName]            = useState('');
   const [phone,           setPhone]           = useState('');
   const [address,         setAddress]         = useState('');
