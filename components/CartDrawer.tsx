@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useCart } from '@/store/cart';
@@ -32,7 +32,15 @@ export default function CartDrawer({ open, onClose }: Props) {
   const removeItem   = useCart(s => s.removeItem);
 
   const [customTip, setCustomTip] = useState('');
-  const [tipMode, setTipMode]     = useState<number | 'custom'>(0);
+  const [tipMode, setTipMode]     = useState<number | 'custom'>(10);
+
+  useEffect(() => {
+    if (!open) return;
+    const { tip: currentTip, subtotal: getSubtotal, setTip: applyTip } = useCart.getState();
+    if (currentTip === 0) {
+      applyTip(Math.round(getSubtotal() * 0.10));
+    }
+  }, [open]);
 
   const isEmpty = items.length === 0;
 

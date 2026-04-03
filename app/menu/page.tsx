@@ -5,16 +5,15 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useCart } from '@/store/cart';
-import { imgUrl } from '@/lib/image-url';
 import ProductCard from '@/components/ProductCard';
 import CartDrawer from '@/components/CartDrawer';
 import type { Category, Product } from '@/types';
 
 const CATEGORY_META: Record<string, { subtitle: string; gradient: string; emoji: string; image?: string }> = {
-  'Chicken Tenders':  { subtitle: 'Crujientes y clásicos', gradient: 'from-[#F3E2D3] to-[#FFF7EF]', emoji: '🍗', image: imgUrl('chicken_tenders.jpeg')! },
-  'Chicken Sandwich': { subtitle: 'Brioche y sabor',       gradient: 'from-[#F1E0C8] to-[#FFF7EF]', emoji: '🥪', image: imgUrl('chicken_sandwich.jpeg')! },
-  'Fries':            { subtitle: 'Papas y dips',          gradient: 'from-[#F5E7B8] to-[#FFF7EF]', emoji: '🍟', image: imgUrl('fries.jpeg')! },
-  'Bebidas':          { subtitle: 'Para acompañar',        gradient: 'from-[#DCEBFF] to-[#FFF7EF]', emoji: '🥤', image: imgUrl('drinks.png')! },
+  'Chicken Tenders':  { subtitle: 'Crujientes y clásicos', gradient: 'from-[#F3E2D3] to-[#FFF7EF]', emoji: '🍗', image: '/images/chicken_tenders.jpeg' },
+  'Chicken Sandwich': { subtitle: 'Brioche y sabor',       gradient: 'from-[#F1E0C8] to-[#FFF7EF]', emoji: '🥪', image: '/images/chicken_sandwich.jpeg' },
+  'Fries':            { subtitle: 'Papas y dips',          gradient: 'from-[#F5E7B8] to-[#FFF7EF]', emoji: '🍟', image: '/images/fries.jpeg' },
+  'Bebidas':          { subtitle: 'Para acompañar',        gradient: 'from-[#DCEBFF] to-[#FFF7EF]', emoji: '🥤', image: '/images/drinks.png' },
 };
 
 function getCategoryMeta(category: Category, productCount: number) {
@@ -114,7 +113,7 @@ export default function MenuPage() {
               </div>
               <div className="relative w-36 h-36 flex-shrink-0 -mr-4 -mb-6 overflow-hidden">
                 <Image
-                  src={imgUrl('menu.png')!}
+                  src="/images/menu.png"
                   alt="Tender"
                   fill
                   className="object-contain scale-[2.1] -translate-y-2 drop-shadow-2xl"

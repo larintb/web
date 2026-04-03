@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Order, Settings, OrderStatus, Session, SessionSummary } from '@/types';
+import type { Order, Settings, OrderStatus, Session, SessionSummary, Category, Product, Extra } from '@/types';
+import ProductsPanel from '@/components/admin/ProductsPanel';
+import ExtrasPanel   from '@/components/admin/ExtrasPanel';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -204,7 +206,10 @@ export default function AdminPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [filter,          setFilter]          = useState<OrderStatus | 'all'>('all');
   const [saving,          setSaving]          = useState(false);
-  const [tab,             setTab]             = useState<'orders' | 'settings' | 'reports'>('orders');
+  const [tab,             setTab]             = useState<'orders' | 'settings' | 'reports' | 'menu'>('orders');
+  const [categories,      setCategories]      = useState<Category[]>([]);
+  const [allProducts,     setAllProducts]     = useState<Product[]>([]);
+  const [allExtras,       setAllExtras]       = useState<Extra[]>([]);
   const [closingSummary,  setClosingSummary]  = useState<SessionSummary | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
@@ -217,6 +222,15 @@ export default function AdminPage() {
 
     supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(200)
       .then(({ data }) => setOrders(data ?? []));
+
+    supabase.from('categories').select('*').order('display_order')
+      .then(({ data }) => setCategories(data ?? []));
+
+    supabase.from('products').select('*, categories(*)').order('display_order')
+      .then(({ data }) => setAllProducts((data ?? []) as Product[]));
+
+    supabase.from('extras').select('*').order('display_order')
+      .then(({ data }) => setAllExtras((data ?? []) as Extra[]));
 
     supabase.from('sessions').select('*').order('opened_at', { ascending: false }).limit(50)
       .then(({ data }) => {
@@ -427,12 +441,13 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="max-w-5xl mx-auto px-4 pb-3 flex gap-1">
-          {(['orders', 'reports', 'settings'] as const).map(t => (
+          {(['orders', 'reports', 'menu', 'settings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${tab === t ? 'bg-brand-red text-white' : 'text-brand-muted hover:text-brand-ink'}`}
             >
               {t === 'orders'   && <>Órdenes {newCount > 0 && <span className="ml-1 bg-brand-orange text-white text-xs rounded-full px-1.5">{newCount}</span>}</>}
               {t === 'reports'  && '📊 Reportes'}
+              {t === 'menu'     && '🍗 Menú'}
               {t === 'settings' && 'Configuración'}
             </button>
           ))}
@@ -633,6 +648,20 @@ export default function AdminPage() {
         )}
 
         {/* ══════════════ TAB: CONFIGURACIÓN ══════════════ */}
+        {tab === 'menu' && (
+          <div>
+            <ProductsPanel
+              categories={categories}
+              products={allProducts}
+              onChange={setAllProducts}
+            />
+            <ExtrasPanel
+              extras={allExtras}
+              onChange={setAllExtras}
+            />
+          </div>
+        )}
+
         {tab === 'settings' && settings && (
           <div className="space-y-4 max-w-lg">
             <div className="surface-paper rounded-2xl p-5">
