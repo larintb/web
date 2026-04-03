@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import { imgUrl } from '@/lib/image-url';
 
 export default function AdminLoginPage() {
   const router   = useRouter();
@@ -34,7 +33,7 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-brand-paper flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <Image src={imgUrl('logo.png')!} alt="Crispy Charles" width={160} height={64} className="object-contain mx-auto mb-4" />
+          <Image src="/images/logo.png" alt="Crispy Charles" width={160} height={64} className="object-contain mx-auto mb-4" />
           <p className="text-xs uppercase tracking-[0.28em] text-brand-muted">Panel de administrador</p>
         </div>
 

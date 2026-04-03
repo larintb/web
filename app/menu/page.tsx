@@ -78,7 +78,7 @@ export default function MenuPage() {
               >←</button>
             )}
             <div>
-              <Image src={imgUrl('logo.png')!} alt="Crispy Charles" width={120} height={48} className="object-contain" />
+              <Image src="/images/logo.png" alt="Crispy Charles" width={120} height={48} className="object-contain" />
               <p className="text-[11px] uppercase tracking-[0.22em] text-brand-muted mt-0.5">
                 {activeCategory ? activeCategory.name : 'Menu'}
               </p>

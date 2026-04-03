@@ -6,7 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
-import { imgUrl } from '@/lib/image-url';
 import type { Order } from '@/types';
 
 // Cargar MapboxMap de forma dinámica para mejor SSR performance
@@ -106,7 +105,7 @@ export default function OrderPage() {
       {/* ── Header ── */}
       <header className="sticky top-0 z-10 bg-brand-paper/95 backdrop-blur border-b border-brand-line/80">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <Image src={imgUrl('logo.png')!} alt="Crispy Charles" width={100} height={40} className="object-contain" />
+          <Image src="/images/logo.png" alt="Crispy Charles" width={100} height={40} className="object-contain" />
           <span className="font-mono font-black text-brand-muted text-sm">#{orderCode}</span>
         </div>
       </header>
