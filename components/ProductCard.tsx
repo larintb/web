@@ -7,10 +7,11 @@ import { imgUrl } from '@/lib/image-url';
 import type { Product } from '@/types';
 
 interface Props {
-  product: Product;
+  product:  Product;
+  priority?: boolean;
 }
 
-export default function ProductCard({ product }: Props) {
+export default function ProductCard({ product, priority = false }: Props) {
   const router = useRouter();
   const ingredientData = getIngredientData(product.name);
   const baseVariant    = product.variants[0];
@@ -25,7 +26,14 @@ export default function ProductCard({ product }: Props) {
       {/* Imagen */}
       <div className="relative h-44 bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] overflow-hidden">
         {product.image_url ? (
-          <Image src={imgUrl(product.image_url)!} alt={product.name} fill className="object-cover" />
+          <Image
+            src={imgUrl(product.image_url, { width: 400, quality: 75 })!}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, 400px"
+            className="object-cover"
+            priority={priority}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-6xl select-none">🍗</div>
         )}

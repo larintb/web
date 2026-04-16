@@ -79,7 +79,14 @@ export default function ProductDetailPage() {
       <div className="relative w-full bg-gradient-to-br from-[#F3E2D3] to-[#FFF7EF]"
         style={{ height: 'min(56vw, 400px)', minHeight: 220 }}>
         {product.image_url ? (
-          <Image src={imgUrl(product.image_url)!} alt={product.name} fill className="object-cover" priority />
+          <Image
+            src={imgUrl(product.image_url, { width: 828, quality: 80 })!}
+            alt={product.name}
+            fill
+            sizes="(max-width: 672px) 100vw, 672px"
+            className="object-cover"
+            priority
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-9xl select-none">🍗</div>
         )}
@@ -178,7 +185,7 @@ export default function ProductDetailPage() {
                     {/* Icono del extra */}
                     <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] flex-shrink-0">
                       {extra.image_url ? (
-                        <Image src={imgUrl(extra.image_url)!} alt={extra.name} width={56} height={56} className="w-full h-full object-cover" />
+                        <Image src={imgUrl(extra.image_url, { width: 96, quality: 75 })!} alt={extra.name} width={56} height={56} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-2xl">🍶</div>
                       )}

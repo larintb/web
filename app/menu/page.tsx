@@ -86,7 +86,7 @@ export default function MenuPage() {
 
           {/* Carrito */}
           <button
-            onClick={() => setCartOpen(true)}
+            onClick={() => router.push('/carrito')}
             className="relative flex items-center gap-2 bg-brand-red hover:bg-brand-dark text-white font-bold px-4 py-2.5 rounded-full transition-all active:scale-95 shadow-lg shadow-brand-red/15"
           >
             <span>🛒</span>
@@ -138,6 +138,8 @@ export default function MenuPage() {
                           src={meta.image}
                           alt={cat.name}
                           fill
+                          sizes="(max-width: 640px) 50vw, 400px"
+                          priority={categories.indexOf(cat) < 2}
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
@@ -170,7 +172,7 @@ export default function MenuPage() {
                 <div className="relative rounded-[32px] overflow-hidden mb-6 surface-paper">
                   {meta.image ? (
                     <div className="relative h-36">
-                      <Image src={meta.image} alt={activeCategory.name} fill className="object-cover" />
+                      <Image src={meta.image} alt={activeCategory.name} fill priority sizes="100vw" className="object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-black/20 p-6 flex items-center">
                         <div>
                           <h2 className="font-display text-6xl text-white leading-none">{activeCategory.name}</h2>
@@ -193,19 +195,19 @@ export default function MenuPage() {
 
             {/* Grid de productos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {categoryProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
+              {categoryProducts.map((product, idx) => (
+                <ProductCard key={product.id} product={product} priority={idx < 2} />
               ))}
             </div>
           </div>
         )}
       </main>
 
-      {/* FAB carrito móvil */}
+      {/* FAB carrito móvil → navega a /carrito */}
       {itemCount > 0 && !cartOpen && (
         <div className="fixed bottom-6 left-0 right-0 px-4 z-20 md:hidden">
           <button
-            onClick={() => setCartOpen(true)}
+            onClick={() => router.push('/carrito')}
             className="w-full bg-brand-red text-white font-black py-4 rounded-full text-lg shadow-lg shadow-brand-red/20 active:scale-95 transition-all flex items-center justify-between px-6"
           >
             <span className="bg-white/20 rounded-lg px-2 py-0.5 text-sm">{itemCount} items</span>

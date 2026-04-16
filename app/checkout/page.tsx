@@ -333,7 +333,7 @@ export default function CheckoutPage() {
                     {/* Icono */}
                     <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] flex-shrink-0">
                       {e.image_url ? (
-                        <Image src={imgUrl(e.image_url)!} alt={e.name} width={48} height={48} className="w-full h-full object-cover" />
+                        <Image src={imgUrl(e.image_url, { width: 96, quality: 75 })!} alt={e.name} width={48} height={48} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xl">🍶</div>
                       )}
