@@ -27,7 +27,7 @@ export default function ProductCard({ product, priority = false }: Props) {
       <div className="relative h-44 bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] overflow-hidden">
         {product.image_url ? (
           <Image
-            src={imgUrl(product.image_url, { width: 400, quality: 75 })!}
+            src={imgUrl(product.image_url)!}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, 400px"
