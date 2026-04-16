@@ -6,9 +6,15 @@ const STORE_LAT     = process.env.STORE_LAT ?? '25.848049';
 
 // Normaliza el número de teléfono al formato whapi (chat_id)
 // Input: "+52 868 347 2565" | "5286834725655" | "5286834725655@s.whatsapp.net"
+// Números mexicanos: WhatsApp requiere prefijo "521" para móviles (52 + 1 + 10 dígitos = 13)
 export function toChatId(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return digits.includes('@') ? phone : `${digits}@s.whatsapp.net`;
+  if (phone.includes('@')) return phone;
+  let digits = phone.replace(/\D/g, '');
+  // Normalizar número mexicano: 52 + 10 dígitos → 521 + 10 dígitos
+  if (digits.startsWith('52') && digits.length === 12) {
+    digits = '521' + digits.slice(2);
+  }
+  return `${digits}@s.whatsapp.net`;
 }
 
 interface SendTextOptions {
