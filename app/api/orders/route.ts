@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { sendText, toChatId } from '@/lib/whapi';
 import type { CreateOrderPayload } from '@/types';
+
+const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? '';
+const ADMIN_PHONE = process.env.ADMIN_PHONE ?? '';
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,6 +65,7 @@ export async function POST(req: NextRequest) {
         payment_method:           payload.payment_method,
         payment_status:           paymentStatus,
         stripe_payment_intent_id: payload.stripe_payment_intent_id ?? null,
+        scheduled_time:           payload.scheduled_time ?? null,
         notes:                    payload.notes ?? null,
         status:                   'new',
       })
@@ -71,6 +76,55 @@ export async function POST(req: NextRequest) {
       console.error('[orders/POST] Supabase error:', error);
       return NextResponse.json({ error: 'Error al crear la orden' }, { status: 500 });
     }
+
+    // ── WhatsApp: confirmación al cliente + alerta al admin ────────────────
+    const code = order.id.slice(0, 6).toUpperCase();
+    const itemLines = (payload.items ?? [])
+      .map(i => `• ${i.qty}× ${i.product_name} (${i.variant_name})`)
+      .join('\n');
+    const scheduledLine = payload.scheduled_time
+      ? `\n⏰ Hora programada: *${payload.scheduled_time}*`
+      : '';
+    const deliveryLine = payload.delivery_type === 'delivery'
+      ? `🛵 Domicilio: ${payload.delivery_address}`
+      : `🏪 Recoger en tienda`;
+
+    const customerMsg =
+      `¡Hola ${payload.customer_name.trim()}! 🍗\n\n` +
+      `Recibimos tu orden *#${code}* en *Crispy Charles*.\n\n` +
+      `${itemLines}\n\n` +
+      `💰 Total: *$${payload.total}*\n` +
+      `${deliveryLine}${scheduledLine}\n\n` +
+      `Sigue el estado de tu pedido aquí:\n🔗 ${APP_URL}/order/${order.id}\n\n` +
+      `¡Gracias por tu orden! 🔥`;
+
+    // Enviar en paralelo — no bloqueamos la respuesta si falla alguno
+    const whapiJobs: Promise<void>[] = [
+      sendText({ to: payload.customer_phone.trim(), body: customerMsg })
+        .catch(err => console.error('[orders/POST] WhatsApp cliente:', err)),
+    ];
+
+    if (ADMIN_PHONE) {
+      const paymentLabel = payload.payment_method === 'cash' ? '💵 Efectivo' : '💳 Tarjeta';
+      const extrasLine   = (payload.extras ?? []).length > 0
+        ? '\n' + payload.extras!.map(e => `  + ${e.qty}× ${e.extra_name}`).join('\n')
+        : '';
+      const notesLine = payload.notes ? `\n📝 ${payload.notes}` : '';
+
+      const adminMsg =
+        `🆕 *Nueva orden #${code}*\n` +
+        `👤 ${payload.customer_name.trim()} · ${payload.customer_phone.trim()}\n\n` +
+        `${itemLines}${extrasLine}\n\n` +
+        `💰 $${payload.total} · ${paymentLabel}\n` +
+        `${deliveryLine}${scheduledLine}${notesLine}`;
+
+      whapiJobs.push(
+        sendText({ to: toChatId(ADMIN_PHONE), body: adminMsg })
+          .catch(err => console.error('[orders/POST] WhatsApp admin:', err)),
+      );
+    }
+
+    await Promise.all(whapiJobs);
 
     return NextResponse.json({ order }, { status: 201 });
   } catch (err) {

@@ -327,11 +327,20 @@ export default function AdminPage() {
     const supabase = createClient();
     await supabase.from('orders').update({ status }).eq('id', orderId);
     if (status === 'preparing' || status === 'ready') {
-      fetch(`/api/admin/orders/${orderId}/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      }).catch(console.error);
+      try {
+        const res = await fetch(`/api/admin/orders/${orderId}/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) {
+          const { whatsapp_error } = await res.json().catch(() => ({}));
+          console.error('[admin] WhatsApp notify falló:', whatsapp_error);
+          alert(`Orden actualizada, pero el WhatsApp no se pudo enviar:\n${whatsapp_error ?? 'Error desconocido'}`);
+        }
+      } catch (err) {
+        console.error('[admin] notify fetch error:', err);
+      }
     }
   }
 

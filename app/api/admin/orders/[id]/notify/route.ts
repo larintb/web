@@ -56,8 +56,9 @@ export async function POST(
       await sendText({ to: order.customer_phone, body: message });
     }
   } catch (err) {
-    console.error(`[orders/notify] WhatsApp error (status=${status}):`, err);
-    // No fallar la petición si WhatsApp falla
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[orders/notify] WhatsApp error (status=${status}):`, msg);
+    return NextResponse.json({ ok: false, whatsapp_error: msg }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true });
