@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { sendText, toChatId } from '@/lib/whapi';
+import { sendText, toChatId } from '@/lib/whatsapp';
 import type { CreateOrderPayload } from '@/types';
 
 const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? '';

@@ -212,6 +212,8 @@ export default function AdminPage() {
   const [allExtras,       setAllExtras]       = useState<Extra[]>([]);
   const [closingSummary,  setClosingSummary]  = useState<SessionSummary | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [printerLastSeen, setPrinterLastSeen] = useState<string | null | undefined>(undefined);
+  const [printerTick,     setPrinterTick]     = useState(0);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -241,7 +243,13 @@ export default function AdminPage() {
         setCurrentSession(active);
       });
 
-    // Realtime para órdenes
+    // Estado inicial de la impresora
+    supabase.from('printers').select('last_seen_at').order('updated_at', { ascending: false }).limit(1)
+      .then(({ data }) => {
+        setPrinterLastSeen(data && data.length > 0 ? data[0].last_seen_at : null);
+      });
+
+    // Realtime para órdenes y estado de impresora
     const channel = supabase.channel('admin-orders')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' },
         (p) => setOrders(prev => [p.new as Order, ...prev])
@@ -249,9 +257,15 @@ export default function AdminPage() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' },
         (p) => setOrders(prev => prev.map(o => o.id === p.new.id ? p.new as Order : o))
       )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'printers' },
+        (p) => { if (p.new && 'last_seen_at' in p.new) setPrinterLastSeen((p.new as { last_seen_at: string }).last_seen_at); }
+      )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Re-evalúa el estado de la impresora cada 30s para detectar heartbeat perdido
+    const staleness = setInterval(() => setPrinterTick(t => t + 1), 30_000);
+
+    return () => { supabase.removeChannel(channel); clearInterval(staleness); };
   }, []);
 
   // ── Toggle principal del negocio ────────────────────────────────────────
@@ -430,6 +444,17 @@ export default function AdminPage() {
                 </p>
               )}
             </div>
+            {printerLastSeen !== undefined && (() => {
+              void printerTick; // fuerza re-render cada 30s para re-evaluar Date.now()
+              const online = printerLastSeen !== null
+                && (Date.now() - new Date(printerLastSeen).getTime()) < 90_000;
+              return (
+                <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${online ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                  {online ? 'Impresora' : 'Sin impresora'}
+                </div>
+              );
+            })()}
           </div>
           <div className="flex items-center gap-3">
             <button

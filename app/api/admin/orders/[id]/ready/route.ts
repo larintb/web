@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { sendText } from '@/lib/whapi';
+import { sendText } from '@/lib/whatsapp';
 
 export async function POST(
   req: NextRequest,

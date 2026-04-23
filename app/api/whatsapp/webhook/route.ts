@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { sendText, buildWelcomeMessage } from '@/lib/whapi';
+import { sendText, buildWelcomeMessage } from '@/lib/whatsapp';
 
-// whapi.cloud llama a esta ruta cuando llega un mensaje
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const payload: GatewayWebhookPayload = await req.json();
 
-    // whapi envía mensajes en body.messages[]
-    // Responder a CUALQUIER mensaje entrante (texto, imagen, audio, sticker, etc.)
-    const messages: WhapiMessage[] = body.messages ?? [];
-    const incoming = messages.filter((m: WhapiMessage) => !m.from_me);
-
-    if (incoming.length === 0) {
+    // Solo procesar mensajes entrantes
+    if (payload.event !== 'message') {
       return NextResponse.json({ ok: true });
     }
+
+    const from = payload.data?.fromNumber ?? payload.data?.from;
+    if (!from) return NextResponse.json({ ok: true });
 
     const supabase = createServiceClient();
     const { data: settings } = await supabase
@@ -25,24 +23,14 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
-    for (const msg of incoming) {
-      const from = msg.from ?? msg.chat_id;
-      if (!from) continue;
-
-      if (!settings?.business_open) {
-        // Negocio cerrado → mensaje de cerrado
-        await sendText({
-          to:   from,
-          body: settings?.closed_message
-            ?? `¡Hola! Estamos cerrados en este momento.\nHorarios: ${settings?.business_hours ?? 'Lun-Dom 12:00-22:00'}\n¡Gracias!`,
-        });
-      } else {
-        // Negocio abierto → enviar link del menú
-        await sendText({
-          to:   from,
-          body: buildWelcomeMessage(appUrl),
-        });
-      }
+    if (!settings?.business_open) {
+      await sendText({
+        to:   from,
+        body: settings?.closed_message
+          ?? `¡Hola! Estamos cerrados en este momento.\nHorarios: ${settings?.business_hours ?? 'Lun-Dom 12:00-22:00'}\n¡Gracias!`,
+      });
+    } else {
+      await sendText({ to: from, body: buildWelcomeMessage(appUrl) });
     }
 
     return NextResponse.json({ ok: true });
@@ -52,21 +40,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET para verificación del webhook (algunos providers usan esto)
-export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get('hub.verify_token');
-  if (token === process.env.WHAPI_TOKEN) {
-    return new Response(req.nextUrl.searchParams.get('hub.challenge') ?? 'ok');
-  }
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-}
-
-// ── Types mínimos de whapi ────────────────────────────────────────────────
-interface WhapiMessage {
-  id:        string;
-  from?:     string;
-  from_me:   boolean;
-  type:      string;
-  text?:     { body: string };
-  chat_id?:  string;
+interface GatewayWebhookPayload {
+  event: string;
+  timestamp?: number;
+  data?: {
+    from?:       string;
+    fromNumber?: string;
+    fromName?:   string;
+    body?:       string;
+    type?:       string;
+  };
 }
