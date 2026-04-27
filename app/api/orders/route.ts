@@ -124,7 +124,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await Promise.all(whapiJobs);
+    // Fire and forget — la orden ya está en Supabase, no bloqueamos al cliente
+    Promise.all(whapiJobs);
 
     return NextResponse.json({ order }, { status: 201 });
   } catch (err) {
