@@ -10,18 +10,18 @@ async function waRequest(method: string, path: string, body?: object) {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': API_KEY,
+      'apikey': API_KEY,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `WhatsApp API error ${res.status}`);
+  if (!res.ok) throw new Error(data.error || data.message || `WhatsApp API error ${res.status}`);
   return data;
 }
 
 export async function sendText({ to, body }: { to: string; body: string }) {
-  return waRequest('POST', '/api/send-text', { to, body });
+  return waRequest('POST', '/send/text', { number: to, text: body });
 }
 
 export async function sendImage({
@@ -33,7 +33,7 @@ export async function sendImage({
   imageUrl: string;
   caption?: string;
 }) {
-  return waRequest('POST', '/api/send-image', { to, imageUrl, caption });
+  return waRequest('POST', '/send/media', { number: to, url: imageUrl, caption });
 }
 
 export async function sendDocument({
@@ -47,15 +47,16 @@ export async function sendDocument({
   filename: string;
   caption?: string;
 }) {
-  return waRequest('POST', '/api/send-document', { to, documentUrl, filename, caption });
+  return waRequest('POST', '/send/media', { number: to, url: documentUrl, filename, caption });
 }
 
 export async function checkNumber(phone: string) {
-  return waRequest('GET', `/api/check-number/${encodeURIComponent(phone)}`);
+  const results = await waRequest('POST', '/check', { numbers: [phone] });
+  return results[0] ?? { exists: false, jid: '' };
 }
 
 export async function getStatus() {
-  return waRequest('GET', '/api/status');
+  return waRequest('GET', '/status');
 }
 
 /** Normaliza el número para logs/debug — el gateway acepta cualquier formato */
