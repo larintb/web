@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { sendText, toChatId } from '@/lib/whatsapp';
 import type { CreateOrderPayload } from '@/types';
 
-const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? '';
+const APP_URL     = process.env.NEXT_PUBLIC_APP_URL ?? '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE ?? '';
 
 export async function POST(req: NextRequest) {
@@ -88,7 +88,6 @@ export async function POST(req: NextRequest) {
     const deliveryLine = payload.delivery_type === 'delivery'
       ? `🛵 Domicilio: ${payload.delivery_address}`
       : `🏪 Recoger en tienda`;
-
     const customerMsg =
       `¡Hola ${payload.customer_name.trim()}! 🍗\n\n` +
       `Recibimos tu orden *#${code}* en *Crispy Charles*.\n\n` +

@@ -15,7 +15,7 @@ const MapboxMap = dynamic(() => import('@/components/MapboxMap').then(m => ({ de
 });
 
 // ── Status config ──────────────────────────────────────────────────────────
-type StepKey = 'new' | 'preparing' | 'ready' | 'delivered';
+type StepKey = 'new' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 
 const STEPS: { key: StepKey; label: string; icon: string }[] = [
   { key: 'new',       label: 'Confirmado', icon: '✓'  },
@@ -24,7 +24,7 @@ const STEPS: { key: StepKey; label: string; icon: string }[] = [
   { key: 'delivered', label: 'Entregado',  icon: '🎉'  },
 ];
 
-const STATUS_ORDER: StepKey[] = ['new', 'preparing', 'ready', 'delivered'];
+const STATUS_ORDER: StepKey[] = ['new', 'preparing', 'ready', 'delivered', 'cancelled'];
 
 const STATUS_HERO: Record<StepKey, { icon: string; title: (o: Order) => string; subtitle: (o: Order) => string }> = {
   new: {
@@ -53,7 +53,24 @@ const STATUS_HERO: Record<StepKey, { icon: string; title: (o: Order) => string; 
     title: () => '¡Que lo disfrutes!',
     subtitle: () => 'Pedido entregado. ¡Gracias por elegir Crispy Charles!',
   },
+  cancelled: {
+    icon: '❌',
+    title: () => 'Orden cancelada',
+    subtitle: (o) =>
+      o.payment_status === 'refunded'
+        ? `Tu pago de $${o.total} fue reembolsado a tu tarjeta.`
+        : 'Tu orden fue cancelada. Disculpa las molestias.',
+  },
 };
+
+function fmtEtaTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function minutesUntil(iso: string): number {
+  return Math.max(1, Math.round((new Date(iso).getTime() - Date.now()) / 60_000));
+}
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function OrderPage() {
@@ -127,8 +144,23 @@ export default function OrderPage() {
           </p>
         </div>
 
-        {/* ── Progress stepper ── */}
-        <div className="surface-paper rounded-[28px] px-5 py-5">
+        {/* ── ETA block — solo si activa y tiene estimado ── */}
+        {(order.status === 'new' || order.status === 'preparing') && order.estimated_ready_at && (
+          <div className="surface-paper rounded-[28px] p-4 text-center">
+            <p className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-1">
+              {order.delivery_type === 'delivery' ? 'Entrega aprox.' : 'Listo aprox.'}
+            </p>
+            <p className="font-display text-5xl text-brand-red leading-none">
+              {fmtEtaTime(order.estimated_ready_at)}
+            </p>
+            <p className="text-xs text-brand-muted mt-1">
+              ~{minutesUntil(order.estimated_ready_at)} min restantes
+            </p>
+          </div>
+        )}
+
+        {/* ── Progress stepper — oculto si cancelada ── */}
+        {order.status !== 'cancelled' && <div className="surface-paper rounded-[28px] px-5 py-5">
           <div className="flex items-start">
             {STEPS.map((step, i) => {
               const done   = currentStep > i;
@@ -162,7 +194,7 @@ export default function OrderPage() {
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* ── Ticket ── */}
         <div className="surface-paper rounded-[28px] overflow-hidden">

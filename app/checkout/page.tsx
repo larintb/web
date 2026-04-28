@@ -91,6 +91,7 @@ export default function CheckoutPage() {
   const [address,         setAddress]         = useState('');
   const [notes,           setNotes]           = useState('');
   const [cashLoading,     setCashLoading]     = useState(false);
+  const [activeOrders,    setActiveOrders]    = useState(0);
   // Timing del pedido
   const [orderTiming,     setOrderTiming]     = useState<'now' | 'later'>('now');
   const [scheduledTime,   setScheduledTime]   = useState('');
@@ -104,13 +105,13 @@ export default function CheckoutPage() {
     Promise.all([
       supabase.from('extras').select('*').eq('active', true).order('display_order'),
       supabase.from('settings').select('business_hours').eq('id', 1).single(),
-    ]).then(([{ data: extras }, { data: settings }]) => {
+      supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['new', 'preparing']),
+    ]).then(([{ data: extras }, { data: cfg }, { count }]) => {
       setAvailableExtras(extras ?? []);
+      setActiveOrders((count ?? 0) as number);
 
-      // Parsear hora de cierre desde "Lun-Dom 12:00-22:00"
-      const match = (settings?.business_hours ?? '').match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
-      const closingStr = match?.[2] ?? '22:00';
-      setTimeSlots(generateSlots(closingStr));
+      const match = (cfg?.business_hours ?? '').match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+      setTimeSlots(generateSlots(match?.[2] ?? '22:00'));
     });
   }, [submitted, deliveryType, items, router]);
 
@@ -216,6 +217,13 @@ export default function CheckoutPage() {
         {/* STEP 1: Datos del cliente */}
         {step === 'info' && (
           <div className="space-y-4 animate-fade-in">
+            <div className="bg-brand-orange/10 border border-brand-orange/30 rounded-2xl p-3 text-center">
+              <p className="text-sm text-brand-ink font-semibold">
+                {activeOrders < 5
+                  ? '⏱ Tiempo estimado: 20-35 min'
+                  : '⏱ Cocina ocupada — más de 35 min de espera'}
+              </p>
+            </div>
             <div className="surface-paper rounded-[28px] p-5 space-y-4">
               <div>
                 <label className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-2 block">Nombre</label>

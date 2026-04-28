@@ -8,6 +8,13 @@
   --brand-dark:   #111111;
   --brand-paper:  #F6F1E8;
   --brand-ink:    #171717;
+
+  /* Chart color tokens */
+  --chart-1: #E63232;
+  --chart-2: #FF6B00;
+  --chart-3: #3B82F6;
+  --chart-4: #22C55E;
+  --chart-5: #A855F7;
 }
 
 * {

@@ -5,7 +5,13 @@
       "Bash(git commit:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
-      "Bash(node scripts/upload-images.mjs)"
+      "Bash(node scripts/upload-images.mjs)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:gist.githubusercontent.com)"
     ]
   }
 }

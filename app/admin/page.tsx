@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { etaIsoFromMinutes } from '@/lib/eta';
 import type { Order, Settings, OrderStatus, Session, SessionSummary, Category, Product, Extra } from '@/types';
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import ExtrasPanel   from '@/components/admin/ExtrasPanel';
+import ReportsTab    from '@/components/admin/ReportsTab';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -14,6 +16,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   preparing: '👨‍🍳 Preparando',
   ready:     '✅ Lista',
   delivered: '🎉 Entregada',
+  cancelled: '❌ Cancelada',
 };
 
 const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -27,7 +30,12 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   preparing: 'bg-orange-50 border-orange-200 text-brand-orange',
   ready:     'bg-green-50 border-green-200 text-green-700',
   delivered: 'bg-gray-50 border-brand-line text-brand-muted',
+  cancelled: 'bg-red-50 border-red-200 text-red-400',
 };
+
+type PendingAction =
+  | { kind: 'advance'; orderId: string; orderCode: string; nextStatus: OrderStatus }
+  | { kind: 'cancel';  orderId: string; orderCode: string; refund: boolean };
 
 function fmt(date: string) {
   return new Date(date).toLocaleString('es-MX', {
@@ -47,8 +55,9 @@ function duration(open: string, close: string | null) {
   return `${h}h ${m}m`;
 }
 
+
 function buildSummary(orders: Order[]): SessionSummary {
-  const cash_revenue   = orders.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
+  const cash_revenue   = orders.filter(o => o.payment_method === 'cash'   && o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
   const stripe_revenue = orders.filter(o => o.payment_method === 'stripe' && o.payment_status === 'paid').reduce((s, o) => s + o.total, 0);
   const delivery_fees  = orders.reduce((s, o) => s + (o.delivery_fee ?? 0), 0);
 
@@ -203,7 +212,6 @@ export default function AdminPage() {
   const [orders,          setOrders]          = useState<Order[]>([]);
   const [sessions,        setSessions]        = useState<Session[]>([]);
   const [currentSession,  setCurrentSession]  = useState<Session | null>(null);
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [filter,          setFilter]          = useState<OrderStatus | 'all'>('all');
   const [saving,          setSaving]          = useState(false);
   const [tab,             setTab]             = useState<'orders' | 'settings' | 'reports' | 'menu'>('orders');
@@ -214,6 +222,9 @@ export default function AdminPage() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [printerLastSeen, setPrinterLastSeen] = useState<string | null | undefined>(undefined);
   const [printerTick,     setPrinterTick]     = useState(0);
+  const [pendingAction,   setPendingAction]   = useState<PendingAction | null>(null);
+  const [acceptMinutes,   setAcceptMinutes]   = useState(20);
+  const [cancelReason,    setCancelReason]    = useState('');
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -337,9 +348,16 @@ export default function AdminPage() {
     setSaving(false);
   }
 
-  async function updateOrderStatus(orderId: string, status: OrderStatus) {
+  async function _updateOrderStatus(orderId: string, status: OrderStatus) {
     const supabase = createClient();
-    await supabase.from('orders').update({ status }).eq('id', orderId);
+    const update: Record<string, unknown> = { status };
+    if (status === 'preparing') {
+      update.estimated_ready_at = etaIsoFromMinutes(acceptMinutes);
+    } else if (status === 'delivered') {
+      const order = orders.find(o => o.id === orderId);
+      if (order?.payment_method === 'cash') update.payment_status = 'paid';
+    }
+    await supabase.from('orders').update(update).eq('id', orderId);
     if (status === 'preparing' || status === 'ready') {
       try {
         const res = await fetch(`/api/admin/orders/${orderId}/notify`, {
@@ -350,12 +368,48 @@ export default function AdminPage() {
         if (!res.ok) {
           const { whatsapp_error } = await res.json().catch(() => ({}));
           console.error('[admin] WhatsApp notify falló:', whatsapp_error);
-          alert(`Orden actualizada, pero el WhatsApp no se pudo enviar:\n${whatsapp_error ?? 'Error desconocido'}`);
         }
       } catch (err) {
         console.error('[admin] notify fetch error:', err);
       }
     }
+  }
+
+  function updateOrderStatus(orderId: string, nextStatus: OrderStatus, orderCode: string) {
+    if (nextStatus === 'preparing') {
+      setAcceptMinutes(settings?.prep_minutes_per_batch ?? 20);
+    }
+    setPendingAction({ kind: 'advance', orderId, orderCode, nextStatus });
+  }
+
+  function cancelOrder(orderId: string, orderCode: string, refund: boolean) {
+    setPendingAction({ kind: 'cancel', orderId, orderCode, refund });
+  }
+
+  function executeAction() {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    const reason = cancelReason.trim();
+
+    // Cerrar modal inmediatamente — la operación corre en background
+    closePendingAction();
+
+    if (action.kind === 'advance') {
+      _updateOrderStatus(action.orderId, action.nextStatus);
+    } else {
+      fetch(`/api/admin/orders/${action.orderId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || undefined }),
+      }).then(res => {
+        if (!res.ok) res.json().then(d => console.error('[admin] cancel error:', d.error)).catch(() => {});
+      }).catch(err => console.error('[admin] cancel fetch error:', err));
+    }
+  }
+
+  function closePendingAction() {
+    setPendingAction(null);
+    setCancelReason('');
   }
 
   async function logout() {
@@ -376,6 +430,8 @@ export default function AdminPage() {
 
   // Nuevas = solo las de la sesión activa
   const newCount = sessionOrders.filter(o => o.status === 'new').length;
+
+  const queueCount = sessionOrders.filter(o => o.status === 'new' || o.status === 'preparing').length;
 
   return (
     <div className="min-h-screen bg-brand-paper text-brand-ink">
@@ -400,32 +456,70 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── Modal de detalle de sesión ── */}
-      {selectedSession && (
-        <div className="fixed inset-0 z-50 bg-brand-dark/30 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="surface-paper rounded-3xl w-full max-w-lg my-6 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-display text-5xl text-brand-ink leading-none">Reporte de sesión</h2>
-              <button onClick={() => setSelectedSession(null)} className="text-brand-muted hover:text-brand-ink text-2xl">×</button>
-            </div>
-            {selectedSession.summary
-              ? <SummaryView summary={selectedSession.summary} session={selectedSession} />
-              : (
-                <div className="text-center py-10 text-brand-muted">
-                  <p className="text-3xl mb-2">🟢</p>
-                  <p>Sesión activa — cierra el negocio para ver el resumen</p>
-                  {(() => {
-                    const liveSummary = buildSummary(sessionOrders);
-                    return (
-                      <div className="mt-6 text-left">
-                        <p className="text-xs text-brand-muted mb-3 text-center uppercase tracking-[0.2em]">Vista previa en tiempo real</p>
-                        <SummaryView summary={liveSummary} session={selectedSession} />
-                      </div>
-                    );
-                  })()}
+      {/* ── Modal de confirmación de acción ── */}
+      {pendingAction && (
+        <div className="fixed inset-0 z-50 bg-brand-dark/30 flex items-center justify-center p-4">
+          <div className="surface-paper rounded-3xl w-full max-w-sm p-6">
+            <h2 className="font-display text-5xl text-brand-ink leading-none mb-2">
+              {pendingAction.kind === 'cancel'
+                ? `Rechazar #${pendingAction.orderCode}`
+                : pendingAction.nextStatus === 'preparing'
+                ? `Aceptar #${pendingAction.orderCode}`
+                : `Marcar como ${STATUS_LABELS[pendingAction.nextStatus]}`}
+            </h2>
+            <p className="text-brand-muted text-sm mt-2 mb-4">
+              {pendingAction.kind === 'cancel'
+                ? pendingAction.refund
+                  ? '⚠️ Se procesará un reembolso automático en Stripe y se notificará al cliente.'
+                  : 'Se notificará al cliente que la orden fue cancelada.'
+                : pendingAction.nextStatus === 'preparing'
+                ? 'Esto inicia la preparación y notifica al cliente por WhatsApp.'
+                : `La orden pasará al estado "${STATUS_LABELS[pendingAction.nextStatus]}".`}
+            </p>
+            {pendingAction.kind === 'advance' && pendingAction.nextStatus === 'preparing' && (
+              <div className="mb-5 flex items-center justify-between bg-brand-paper rounded-2xl p-4">
+                <button
+                  onClick={() => setAcceptMinutes(m => Math.max(5, m - 5))}
+                  className="w-10 h-10 rounded-full border border-brand-line text-brand-ink font-black text-lg flex items-center justify-center hover:bg-brand-line transition-colors"
+                >−</button>
+                <div className="text-center">
+                  <p className="font-display text-5xl text-brand-red leading-none">{acceptMinutes}</p>
+                  <p className="text-xs text-brand-muted mt-0.5">minutos</p>
                 </div>
-              )
-            }
+                <button
+                  onClick={() => setAcceptMinutes(m => m + 5)}
+                  className="w-10 h-10 rounded-full border border-brand-line text-brand-ink font-black text-lg flex items-center justify-center hover:bg-brand-line transition-colors"
+                >+</button>
+              </div>
+            )}
+            {pendingAction.kind === 'cancel' && (
+              <div className="mb-5">
+                <label className="text-xs uppercase tracking-[0.2em] text-brand-muted block mb-1.5">Razón (se enviará al cliente)</label>
+                <textarea
+                  rows={2}
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  placeholder="Por favor no pases al negocio."
+                  className="w-full bg-brand-paper border border-brand-line rounded-xl px-3 py-2 text-brand-ink text-sm placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors resize-none"
+                />
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={closePendingAction}
+                className="flex-1 py-3 rounded-2xl border border-brand-line text-brand-muted font-semibold hover:text-brand-ink transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeAction}
+                className={`flex-1 py-3 rounded-2xl font-semibold text-white transition-colors ${
+                  pendingAction.kind === 'cancel' ? 'bg-red-500 hover:bg-red-600' : 'bg-brand-red hover:bg-red-700'
+                }`}
+              >
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -441,6 +535,11 @@ export default function AdminPage() {
               {currentSession && !saving && (
                 <p className="text-xs text-green-600 font-semibold">
                   Abierto desde {fmtTime(currentSession.opened_at)} · {duration(currentSession.opened_at, null)}
+                </p>
+              )}
+              {currentSession && queueCount > 0 && (
+                <p className="text-xs text-brand-muted">
+                  Cola: {queueCount} {queueCount === 1 ? 'orden' : 'órdenes'}
                 </p>
               )}
             </div>
@@ -480,8 +579,8 @@ export default function AdminPage() {
               className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${tab === t ? 'bg-brand-red text-white' : 'text-brand-muted hover:text-brand-ink'}`}
             >
               {t === 'orders'   && <>Órdenes {newCount > 0 && <span className="ml-1 bg-brand-orange text-white text-xs rounded-full px-1.5">{newCount}</span>}</>}
-              {t === 'reports'  && '📊 Reportes'}
-              {t === 'menu'     && '🍗 Menú'}
+              {t === 'reports'  && 'Reportes'}
+              {t === 'menu'     && 'Menú'}
               {t === 'settings' && 'Configuración'}
             </button>
           ))}
@@ -494,7 +593,7 @@ export default function AdminPage() {
         {tab === 'orders' && (
           <div>
             <div className="flex gap-2 flex-wrap mb-6">
-              {(['all', 'new', 'preparing', 'ready', 'delivered'] as const).map(f => (
+              {(['all', 'new', 'preparing', 'ready', 'delivered', 'cancelled'] as const).map(f => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={`text-sm px-4 py-1.5 rounded-full font-semibold transition-all ${filter === f ? 'bg-brand-red text-white' : 'bg-white border border-brand-line text-brand-muted hover:text-brand-ink'}`}
                 >
@@ -535,6 +634,9 @@ export default function AdminPage() {
                           </p>
                           <p className="text-xs opacity-60 mt-0.5">
                             {fmtTime(order.created_at)} · {order.delivery_type === 'pickup' ? '🏪 Recoger' : '🛵 Domicilio'} · {order.payment_method === 'stripe' ? '💳' : '💵'} {order.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}
+                            {order.estimated_ready_at && order.status !== 'delivered' && order.status !== 'cancelled' && (
+                              <> · ⏱ {fmtTime(order.estimated_ready_at)}</>
+                            )}
                           </p>
                         </div>
                         <span className={`text-2xl font-black ${isDelivered ? 'line-through opacity-60' : ''}`}>${order.total}</span>
@@ -549,14 +651,24 @@ export default function AdminPage() {
                         {order.notes && <p className="opacity-60 italic">📝 {order.notes}</p>}
                         {order.delivery_address && <p className="opacity-70">📍 {order.delivery_address}</p>}
                       </div>
-                      {STATUS_NEXT[order.status] && (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, STATUS_NEXT[order.status]!)}
-                          className="btn-primary text-sm py-2 px-4"
-                        >
-                          → {STATUS_LABELS[STATUS_NEXT[order.status]!]}
-                        </button>
-                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        {STATUS_NEXT[order.status] && (
+                          <button
+                            onClick={() => updateOrderStatus(order.id, STATUS_NEXT[order.status]!, order.id.slice(0, 6).toUpperCase())}
+                            className="btn-primary text-sm py-2 px-4"
+                          >
+                            {order.status === 'new' ? '✅ Aceptar Orden' : `→ ${STATUS_LABELS[STATUS_NEXT[order.status]!]}`}
+                          </button>
+                        )}
+                        {order.status === 'new' && (
+                          <button
+                            onClick={() => cancelOrder(order.id, order.id.slice(0, 6).toUpperCase(), order.payment_method === 'stripe' && order.payment_status === 'paid')}
+                            className="text-sm py-2 px-4 rounded-xl border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-semibold"
+                          >
+                            ❌ Rechazar
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -567,118 +679,12 @@ export default function AdminPage() {
 
         {/* ══════════════ TAB: REPORTES ══════════════ */}
         {tab === 'reports' && (
-          <div>
-            {/* Sesión activa en vivo */}
-            {currentSession && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <p className="font-black text-green-700">Sesión activa</p>
-                    </div>
-                    <p className="text-sm text-brand-muted mt-0.5">
-                      Abierto {fmt(currentSession.opened_at)} · {duration(currentSession.opened_at, null)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedSession(currentSession)}
-                    className="text-sm bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg font-semibold transition-colors"
-                  >
-                    Ver en vivo →
-                  </button>
-                </div>
-                {(() => {
-                  const live = buildSummary(sessionOrders);
-                  return (
-                    <div className="grid grid-cols-3 gap-2 mt-3">
-                      <div className="bg-white/70 rounded-xl p-3 text-center">
-                        <p className="text-2xl font-black text-brand-ink">{live.total_orders}</p>
-                        <p className="text-xs text-brand-muted">órdenes</p>
-                      </div>
-                      <div className="bg-white/70 rounded-xl p-3 text-center">
-                        <p className="text-2xl font-black text-brand-orange">${live.cash_revenue}</p>
-                        <p className="text-xs text-brand-muted">💵 efectivo</p>
-                      </div>
-                      <div className="bg-white/70 rounded-xl p-3 text-center">
-                        <p className="text-2xl font-black text-blue-600">${live.stripe_revenue}</p>
-                        <p className="text-xs text-brand-muted">💳 tarjeta</p>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* Historial de sesiones */}
-            <h2 className="font-display text-5xl text-brand-ink leading-none mb-4">Historial de turnos</h2>
-            {sessions.filter(s => s.closed_at).length === 0 && !currentSession ? (
-              <div className="text-center py-20 text-brand-muted">
-                <p className="text-4xl mb-3">📊</p>
-                <p>Aún no hay reportes guardados</p>
-                <p className="text-sm mt-1">Se generan automáticamente al cerrar el negocio</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {sessions.filter(s => s.closed_at && s.summary).map(session => {
-                  const s = session.summary!;
-                  return (
-                    <button
-                      key={session.id}
-                      onClick={() => setSelectedSession(session)}
-                      className="w-full surface-paper hover:border-brand-red/40 rounded-2xl p-5 text-left transition-all duration-200"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <p className="font-bold text-brand-ink">
-                            {new Date(session.opened_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
-                          </p>
-                          <p className="text-xs text-brand-muted mt-0.5">
-                            {fmtTime(session.opened_at)} – {fmtTime(session.closed_at!)} · {duration(session.opened_at, session.closed_at)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-black text-green-600">${s.total_revenue}</p>
-                          <p className="text-xs text-brand-muted">{s.total_orders} órdenes</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-3 text-sm">
-                        <span className="text-brand-orange font-semibold">💵 ${s.cash_revenue}</span>
-                        <span className="text-blue-600 font-semibold">💳 ${s.stripe_revenue}</span>
-                        {s.delivery_fees > 0 && <span className="text-brand-muted">🛵 ${s.delivery_fees}</span>}
-                      </div>
-                      <p className="text-xs text-brand-muted mt-2 text-right">Ver reporte completo →</p>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Todas las órdenes */}
-            {orders.length > 0 && (
-              <div className="mt-8">
-                <h2 className="font-display text-5xl text-brand-ink leading-none mb-4">Todas las órdenes</h2>
-                <div className="space-y-2">
-                  {orders.map(o => (
-                    <div key={o.id} className="surface-paper rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="font-mono text-xs text-brand-muted flex-shrink-0">#{o.id.slice(0,6).toUpperCase()}</span>
-                        <div className="min-w-0">
-                          <p className="text-brand-ink text-sm font-semibold truncate">{o.customer_name}</p>
-                          <p className="text-brand-muted text-xs">{fmt(o.created_at)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-brand-line text-brand-muted">{STATUS_LABELS[o.status]}</span>
-                        <span className="text-xs">{o.payment_method === 'cash' ? '💵' : '💳'}</span>
-                        <span className="text-brand-ink font-bold text-sm">${o.total}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <ReportsTab
+            allProducts={allProducts}
+            currentSession={currentSession}
+            sessionOrders={sessionOrders}
+            sessions={sessions}
+          />
         )}
 
         {/* ══════════════ TAB: CONFIGURACIÓN ══════════════ */}
@@ -744,6 +750,16 @@ export default function AdminPage() {
               <input type="number" value={settings.delivery_fee}
                 onChange={e => setSettings({ ...settings, delivery_fee: Number(e.target.value) })}
                 onBlur={e => toggleSetting('delivery_fee', Number(e.target.value))}
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors"
+              />
+            </div>
+
+            <div className="surface-paper rounded-2xl p-5">
+              <h3 className="font-display text-4xl text-brand-ink leading-none mb-2">Tiempo base al aceptar (min)</h3>
+              <p className="text-xs text-brand-muted mb-3">Valor inicial del selector cuando el negocio acepta una orden</p>
+              <input type="number" value={settings.prep_minutes_per_batch}
+                onChange={e => setSettings({ ...settings, prep_minutes_per_batch: Number(e.target.value) })}
+                onBlur={e => toggleSetting('prep_minutes_per_batch', Number(e.target.value))}
                 className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors"
               />
             </div>

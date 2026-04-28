@@ -32,6 +32,7 @@ export interface Settings {
   business_hours: string;
   closed_message: string;
   delivery_fee: number;
+  prep_minutes_per_batch: number;
   updated_at: string;
 }
 
@@ -92,8 +93,8 @@ export interface CartExtra {
 
 export type DeliveryType = 'pickup' | 'delivery';
 export type PaymentMethod = 'stripe' | 'cash';
-export type PaymentStatus = 'pending' | 'paid';
-export type OrderStatus = 'new' | 'preparing' | 'ready' | 'delivered';
+export type PaymentStatus = 'pending' | 'paid' | 'refunded';
+export type OrderStatus = 'new' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 
 export interface Order {
   id: string;
@@ -111,6 +112,7 @@ export interface Order {
   stripe_payment_intent_id: string | null;
   status: OrderStatus;
   notes: string | null;
+  estimated_ready_at: string | null;
   created_at: string;
 }
 
