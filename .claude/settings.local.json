@@ -11,7 +11,9 @@
       "WebFetch(domain:ui.shadcn.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:gist.github.com)",
-      "WebFetch(domain:gist.githubusercontent.com)"
+      "WebFetch(domain:gist.githubusercontent.com)",
+      "Bash(npx next *)",
+      "Bash(npm audit *)"
     ]
   }
 }

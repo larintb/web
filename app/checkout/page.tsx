@@ -62,7 +62,7 @@ function StripeForm({ orderData, onSuccess }: {
         disabled={!stripe || processing}
         className="btn-primary w-full text-lg"
       >
-        {processing ? 'Procesando...' : 'Pagar ahora 💳'}
+        {processing ? 'Procesando...' : 'Pagar ahora →'}
       </button>
     </form>
   );
@@ -111,19 +111,20 @@ export default function CheckoutPage() {
       setActiveOrders((count ?? 0) as number);
 
       const match = (cfg?.business_hours ?? '').match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
-      setTimeSlots(generateSlots(match?.[2] ?? '22:00'));
+      setTimeSlots(generateSlots(match?.[2] ?? '22:00', (count ?? 0) as number));
     });
   }, [submitted, deliveryType, items, router]);
 
-  // Genera franjas de 20 min desde ahora+20min hasta hora de cierre
-  function generateSlots(closingTime: string): string[] {
+  // Genera franjas de 20 min. El buffer crece 20min por cada orden activa en cola:
+  // 0 órdenes → +20min, 1 orden → +40min, 2 → +60min, etc.
+  function generateSlots(closingTime: string, queueCount: number): string[] {
     const [closeH, closeM] = closingTime.split(':').map(Number);
     const closeTotal = closeH * 60 + closeM;
 
-    const now = new Date();
-    // Primera franja: redondear al siguiente múltiplo de 20 + 20 min de buffer
-    const nowMins  = now.getHours() * 60 + now.getMinutes();
-    const firstSlot = Math.ceil((nowMins + 20) / 20) * 20;
+    const now        = new Date();
+    const nowMins    = now.getHours() * 60 + now.getMinutes();
+    const bufferMins = 20 * (queueCount + 1);
+    const firstSlot  = Math.ceil((nowMins + bufferMins) / 20) * 20;
 
     const slots: string[] = [];
     for (let m = firstSlot; m <= closeTotal; m += 20) {
@@ -265,20 +266,18 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setOrderTiming('now')}
-                  className={`p-4 rounded-2xl border text-center transition-all ${orderTiming === 'now' ? 'border-brand-red bg-brand-red/10' : 'border-brand-line bg-white hover:border-brand-red/30'}`}
+                  className={`p-4 rounded-2xl text-center transition-all ${orderTiming === 'now' ? 'bg-teal-700 text-white' : 'bg-white border border-brand-line text-brand-ink hover:border-teal-400'}`}
                 >
-                  <div className="text-2xl mb-1">⚡</div>
-                  <p className="font-bold text-sm text-brand-ink">Ahora</p>
-                  <p className="text-xs text-brand-muted">Lo antes posible</p>
+                  <p className="font-bold text-sm">Ahora</p>
+                  <p className={`text-xs mt-0.5 ${orderTiming === 'now' ? 'text-teal-200' : 'text-brand-muted'}`}>Lo antes posible</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setOrderTiming('later')}
-                  className={`p-4 rounded-2xl border text-center transition-all ${orderTiming === 'later' ? 'border-brand-orange bg-brand-orange/10' : 'border-brand-line bg-white hover:border-brand-orange/30'}`}
+                  className={`p-4 rounded-2xl text-center transition-all ${orderTiming === 'later' ? 'bg-indigo-700 text-white' : 'bg-white border border-brand-line text-brand-ink hover:border-indigo-400'}`}
                 >
-                  <div className="text-2xl mb-1">🕐</div>
-                  <p className="font-bold text-sm text-brand-ink">Después</p>
-                  <p className="text-xs text-brand-muted">Elige hora</p>
+                  <p className="font-bold text-sm">Después</p>
+                  <p className={`text-xs mt-0.5 ${orderTiming === 'later' ? 'text-indigo-200' : 'text-brand-muted'}`}>Elige hora</p>
                 </button>
               </div>
               {orderTiming === 'later' && (
@@ -299,9 +298,14 @@ export default function CheckoutPage() {
                       ))}
                     </select>
                   )}
+                  {activeOrders > 0 && (
+                    <p className="text-brand-muted text-xs mt-1.5 text-center">
+                      {activeOrders} {activeOrders === 1 ? 'orden' : 'órdenes'} en cocina — primer slot disponible en ~{20 * (activeOrders + 1)} min
+                    </p>
+                  )}
                   {scheduledTime && (
-                    <p className="text-brand-orange text-xs mt-1.5 text-center font-semibold">
-                      ✓ {deliveryType === 'delivery' ? 'Llega' : 'Listo'} a las {scheduledTime}
+                    <p className="text-teal-700 text-xs mt-1.5 text-center font-semibold">
+                      Listo a las {scheduledTime}
                     </p>
                   )}
                 </div>
@@ -343,7 +347,7 @@ export default function CheckoutPage() {
                       {e.image_url ? (
                         <Image src={imgUrl(e.image_url)!} alt={e.name} width={48} height={48} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xl">🍶</div>
+                        <div className="w-full h-full flex items-center justify-center bg-brand-line/40 rounded-2xl" />
                       )}
                     </div>
                     {/* Info */}
@@ -377,19 +381,30 @@ export default function CheckoutPage() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setPaymentMethod('stripe')}
-                  className={`p-4 rounded-2xl border text-center transition-all ${paymentMethod === 'stripe' ? 'border-brand-red bg-brand-red/10' : 'border-brand-line bg-white hover:border-brand-red/30'}`}
+                  className={`p-4 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'stripe' ? 'border-blue-500 bg-blue-500' : 'border-brand-line bg-white hover:border-blue-300'}`}
                 >
-                  <div className="text-2xl mb-1">💳</div>
-                  <p className="font-bold text-sm text-brand-ink">Tarjeta</p>
-                  <p className="text-xs text-brand-muted">Pago seguro</p>
+                  <div className="flex gap-1.5 justify-center items-center mb-2">
+                    {[
+                      { src: 'https://images.icon-icons.com/1316/PNG/512/if-visa-2593666_86609.png', alt: 'Visa' },
+                      { src: 'https://images.icon-icons.com/2342/PNG/512/mastercard_payment_method_icon_142750.png', alt: 'Mastercard' },
+                      { src: 'https://images.icon-icons.com/1186/PNG/512/1490135020-american-express_82257.png', alt: 'Amex' },
+                    ].map(({ src, alt }) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <span key={alt} className="bg-white rounded px-1.5 py-0.5 flex items-center">
+                        <img src={src} alt={alt} className="h-4 object-contain" />
+                      </span>
+                    ))}
+                  </div>
+                  <p className={`font-bold text-sm ${paymentMethod === 'stripe' ? 'text-white' : 'text-brand-ink'}`}>Tarjeta</p>
+                  <p className={`text-xs ${paymentMethod === 'stripe' ? 'text-blue-100' : 'text-brand-muted'}`}>Pago seguro</p>
                 </button>
                 <button
                   onClick={() => setPaymentMethod('cash')}
-                  className={`p-4 rounded-2xl border text-center transition-all ${paymentMethod === 'cash' ? 'border-brand-orange bg-brand-orange/10' : 'border-brand-line bg-white hover:border-brand-orange/30'}`}
+                  className={`p-4 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'cash' ? 'border-green-500 bg-green-500' : 'border-brand-line bg-white hover:border-green-300'}`}
                 >
-                  <div className="text-2xl mb-1">💵</div>
-                  <p className="font-bold text-sm text-brand-ink">Efectivo</p>
-                  <p className="text-xs text-brand-muted">Pagar al recibir</p>
+                  <div className={`text-xs font-black uppercase tracking-widest mb-2 ${paymentMethod === 'cash' ? 'text-green-100' : 'text-brand-muted'}`}>MXN</div>
+                  <p className={`font-bold text-sm ${paymentMethod === 'cash' ? 'text-white' : 'text-brand-ink'}`}>Efectivo</p>
+                  <p className={`text-xs ${paymentMethod === 'cash' ? 'text-green-100' : 'text-brand-muted'}`}>Pagar al recibir</p>
                 </button>
               </div>
             </div>
@@ -429,7 +444,50 @@ export default function CheckoutPage() {
                 <span>Total</span><span>${total}</span>
               </div>
             </div>
-            <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
+            <Elements stripe={stripePromise} options={{
+              clientSecret,
+              appearance: {
+                theme: 'flat',
+                variables: {
+                  colorPrimary:        '#D94A2B',
+                  colorBackground:     '#FFFFFF',
+                  colorText:           '#171717',
+                  colorTextSecondary:  '#8C7B65',
+                  colorDanger:         '#ef4444',
+                  fontFamily:          'system-ui, sans-serif',
+                  borderRadius:        '12px',
+                  spacingUnit:         '5px',
+                },
+                rules: {
+                  '.Input': {
+                    border:          '1.5px solid #E8D8C6',
+                    padding:         '12px 14px',
+                    fontSize:        '15px',
+                    backgroundColor: '#FAFAF8',
+                  },
+                  '.Input:focus': {
+                    border:     '1.5px solid #D94A2B',
+                    boxShadow:  '0 0 0 3px rgba(217,74,43,0.12)',
+                  },
+                  '.Label': {
+                    fontSize:    '11px',
+                    fontWeight:  '600',
+                    letterSpacing: '0.15em',
+                    textTransform: 'uppercase',
+                    color:       '#8C7B65',
+                    marginBottom: '6px',
+                  },
+                  '.Tab': {
+                    border:          '1.5px solid #E8D8C6',
+                    backgroundColor: '#FAFAF8',
+                  },
+                  '.Tab--selected': {
+                    border:          '1.5px solid #D94A2B',
+                    backgroundColor: '#fff',
+                  },
+                },
+              },
+            }}>
               <StripeForm
                 orderData={buildOrderData('stripe')}
                 onSuccess={id => { setSubmitted(true); clear(); router.push(`/order/${id}`); }}

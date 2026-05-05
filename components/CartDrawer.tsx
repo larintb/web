@@ -89,10 +89,14 @@ export default function CartDrawer({ open, onClose }: Props) {
           {/* Mapa 3D para recoger */}
           {deliveryType === 'pickup' && (
             <div className="rounded-2xl overflow-hidden border border-brand-line h-80 shadow-lg">
-              <MapboxMap 
+              <MapboxMap
                 address="Crispy Charles, Matamoros, Tamaulipas"
                 businessName="🍗 Crispy Charles"
                 coords={[-97.503669, 25.848049]}
+                streetLabels={[
+                  { name: 'Av. Longoria', coords: [-97.50345869837392, 25.848335328371434], rotation: 192 },
+                  { name: 'Av. Oaxaca', coords: [-97.50351665451699, 25.848039409443185], rotation: -78 },
+                ]}
               />
             </div>
           )}

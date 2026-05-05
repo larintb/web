@@ -45,6 +45,10 @@ export async function POST(
     return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
   }
 
+  if (!order.customer_phone) {
+    return NextResponse.json({ ok: true, skipped: true, reason: 'no_phone' });
+  }
+
   const code = order.id.slice(0, 6).toUpperCase();
 
   try {

@@ -75,11 +75,13 @@ function rangeStart(range: Range): string | null {
 }
 
 function buildSummary(orders: Order[]): SessionSummary {
-  const cash_revenue   = orders.filter(o => o.payment_method === 'cash'   && o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
-  const stripe_revenue = orders.filter(o => o.payment_method === 'stripe' && o.payment_status === 'paid').reduce((s, o) => s + o.total, 0);
-  const delivery_fees  = orders.reduce((s, o) => s + (o.delivery_fee ?? 0), 0);
+  const active              = orders.filter(o => o.status !== 'cancelled');
+  const cash_revenue        = active.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
+  const stripe_revenue      = active.filter(o => o.payment_method === 'stripe' && o.payment_status === 'paid').reduce((s, o) => s + o.total, 0);
+  const card_manual_revenue = active.filter(o => o.payment_method === 'card_manual').reduce((s, o) => s + o.total, 0);
+  const delivery_fees       = active.reduce((s, o) => s + (o.delivery_fee ?? 0), 0);
   const itemMap: Record<string, { qty: number; revenue: number }> = {};
-  for (const o of orders) {
+  for (const o of active) {
     for (const item of o.items ?? []) {
       const k = `${item.product_name} (${item.variant_name})`;
       if (!itemMap[k]) itemMap[k] = { qty: 0, revenue: 0 };
@@ -88,7 +90,7 @@ function buildSummary(orders: Order[]): SessionSummary {
     }
   }
   const extraMap: Record<string, { qty: number; revenue: number }> = {};
-  for (const o of orders) {
+  for (const o of active) {
     for (const e of o.extras ?? []) {
       if (!extraMap[e.extra_name]) extraMap[e.extra_name] = { qty: 0, revenue: 0 };
       extraMap[e.extra_name].qty     += e.qty;
@@ -96,9 +98,9 @@ function buildSummary(orders: Order[]): SessionSummary {
     }
   }
   return {
-    total_orders:   orders.length,
-    total_revenue:  cash_revenue + stripe_revenue,
-    cash_revenue, stripe_revenue, delivery_fees,
+    total_orders:        active.length,
+    total_revenue:       cash_revenue + stripe_revenue + card_manual_revenue,
+    cash_revenue, stripe_revenue, card_manual_revenue, delivery_fees,
     items_sold:  Object.entries(itemMap).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.qty - a.qty),
     extras_sold: Object.entries(extraMap).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.qty - a.qty),
     orders_snapshot: orders.map(o => ({
@@ -111,20 +113,21 @@ function buildSummary(orders: Order[]): SessionSummary {
 function groupSessionsByDay(sessions: Session[]) {
   const map = new Map<string, {
     label: string; sessions: Session[];
-    revenue: number; orders: number; cash: number; stripe: number; fees: number;
+    revenue: number; orders: number; cash: number; stripe: number; cardManual: number; fees: number;
   }>();
   for (const s of sessions) {
     if (!s.closed_at || !s.summary) continue;
     const key   = localDateKey(s.opened_at);
     const label = new Date(s.opened_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    if (!map.has(key)) map.set(key, { label, sessions: [], revenue: 0, orders: 0, cash: 0, stripe: 0, fees: 0 });
+    if (!map.has(key)) map.set(key, { label, sessions: [], revenue: 0, orders: 0, cash: 0, stripe: 0, cardManual: 0, fees: 0 });
     const day = map.get(key)!;
     day.sessions.push(s);
-    day.revenue += s.summary.total_revenue;
-    day.orders  += s.summary.total_orders;
-    day.cash    += s.summary.cash_revenue;
-    day.stripe  += s.summary.stripe_revenue;
-    day.fees    += s.summary.delivery_fees;
+    day.revenue    += s.summary.total_revenue;
+    day.orders     += s.summary.total_orders;
+    day.cash       += s.summary.cash_revenue;
+    day.stripe     += s.summary.stripe_revenue;
+    day.cardManual += s.summary.card_manual_revenue ?? 0;
+    day.fees       += s.summary.delivery_fees;
   }
   return [...map.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([key, val]) => ({ key, ...val }));
 }
@@ -147,16 +150,22 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
       </div>
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'Total órdenes',   value: String(summary.total_orders),        color: 'text-brand-ink'    },
-          { label: 'Ingresos totales', value: fmtMoney(summary.total_revenue),    color: 'text-green-600'    },
-          { label: '💵 Efectivo',      value: fmtMoney(summary.cash_revenue),     color: 'text-brand-orange' },
-          { label: '💳 Tarjeta',       value: fmtMoney(summary.stripe_revenue),   color: 'text-blue-600'     },
+          { label: 'Total órdenes',    value: String(summary.total_orders),     color: 'text-brand-ink'    },
+          { label: 'Ingresos totales', value: fmtMoney(summary.total_revenue),  color: 'text-green-600'    },
+          { label: '💵 Efectivo',       value: fmtMoney(summary.cash_revenue),  color: 'text-brand-orange' },
+          { label: '💳 Stripe',         value: fmtMoney(summary.stripe_revenue), color: 'text-blue-600'    },
         ].map(({ label, value, color }) => (
           <div key={label} className="surface-paper rounded-2xl p-4">
             <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">{label}</p>
             <p className={`text-2xl font-black ${color}`}>{value}</p>
           </div>
         ))}
+        {(summary.card_manual_revenue ?? 0) > 0 && (
+          <div className="surface-paper rounded-2xl p-4 col-span-2">
+            <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Terminal (POS)</p>
+            <p className="text-2xl font-black text-indigo-600">{fmtMoney(summary.card_manual_revenue)}</p>
+          </div>
+        )}
         {summary.delivery_fees > 0 && (
           <div className="surface-paper rounded-2xl p-4 col-span-2">
             <p className="text-xs text-brand-muted uppercase tracking-[0.15em] mb-1">🛵 Envíos cobrados</p>
@@ -200,16 +209,19 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
         <div className="surface-paper rounded-2xl p-4">
           <p className="text-sm font-bold text-brand-ink mb-3">📋 Detalle de órdenes</p>
           <div className="space-y-1.5">
-            {summary.orders_snapshot.map((o, i) => (
-              <div key={i} className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-brand-muted">#{o.id.slice(0, 6).toUpperCase()}</span>
-                  <span className="text-brand-ink">{o.customer_name}</span>
-                  <span className="text-xs">{o.payment_method === 'cash' ? '💵' : '💳'}</span>
+            {summary.orders_snapshot.map((o, i) => {
+              const cancelled = o.status === 'cancelled';
+              return (
+                <div key={i} className={`flex justify-between items-center text-sm ${cancelled ? 'opacity-50' : ''}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono text-xs text-brand-muted ${cancelled ? 'line-through' : ''}`}>#{o.id.slice(0, 6).toUpperCase()}</span>
+                    <span className={`text-brand-ink ${cancelled ? 'line-through' : ''}`}>{o.customer_name}</span>
+                    <span className="text-xs">{cancelled ? '❌' : o.payment_method === 'cash' ? '💵' : '💳'}</span>
+                  </div>
+                  <span className={`text-brand-ink font-bold ${cancelled ? 'line-through' : ''}`}>{fmtMoney(o.total)}</span>
                 </div>
-                <span className="text-brand-ink font-bold">{fmtMoney(o.total)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -242,11 +254,12 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
     const completed = orders.filter(o => o.status !== 'cancelled');
     const cancelled = orders.filter(o => o.status === 'cancelled');
 
-    const revenue    = completed.reduce((s, o) => s + o.total, 0);
-    const avgTicket  = completed.length > 0 ? Math.round(revenue / completed.length) : 0;
-    const cashRev    = completed.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
-    const stripeRev  = completed.filter(o => o.payment_method === 'stripe').reduce((s, o) => s + o.total, 0);
-    const cancelLoss = cancelled.reduce((s, o) => s + o.total, 0);
+    const revenue       = completed.reduce((s, o) => s + o.total, 0);
+    const avgTicket     = completed.length > 0 ? Math.round(revenue / completed.length) : 0;
+    const cashRev       = completed.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
+    const stripeRev     = completed.filter(o => o.payment_method === 'stripe').reduce((s, o) => s + o.total, 0);
+    const cardManualRev = completed.filter(o => o.payment_method === 'card_manual').reduce((s, o) => s + o.total, 0);
+    const cancelLoss    = cancelled.reduce((s, o) => s + o.total, 0);
     const cancelRate = orders.length > 0 ? Math.round(cancelled.length / orders.length * 100) : 0;
 
     const pickupCount   = completed.filter(o => o.delivery_type === 'pickup').length;
@@ -349,7 +362,7 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
     return {
       revenue, avgTicket,
       orderCount: completed.length, cancelCount: cancelled.length, cancelRate, cancelLoss,
-      cashRev, stripeRev,
+      cashRev, stripeRev, cardManualRev,
       cashPct:    revenue > 0 ? Math.round(cashRev / revenue * 100) : 50,
       pickupCount, deliveryCount,
       pickupPct:  (pickupCount + deliveryCount) > 0 ? Math.round(pickupCount / (pickupCount + deliveryCount) * 100) : 50,
@@ -449,10 +462,15 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
               <p className="text-[10px] text-brand-muted mt-0.5">{a.cashPct}% del total</p>
             </div>
             <div className="surface-paper rounded-2xl p-4">
-              <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Tarjeta</p>
+              <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Stripe</p>
               <p className="text-2xl font-black text-blue-600">{fmtMoney(a.stripeRev)}</p>
-              <p className="text-[10px] text-brand-muted mt-0.5">{100 - a.cashPct}% del total</p>
             </div>
+            {a.cardManualRev > 0 && (
+              <div className="surface-paper rounded-2xl p-4 col-span-2">
+                <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Terminal (POS)</p>
+                <p className="text-2xl font-black text-indigo-600">{fmtMoney(a.cardManualRev)}</p>
+              </div>
+            )}
           </div>
 
           {/* ── Cancellations + Delivery split ── */}
@@ -720,12 +738,13 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
                 Detalle →
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-px bg-green-200 border-t border-green-200">
+            <div className={`grid gap-px bg-green-200 border-t border-green-200 ${(live.card_manual_revenue ?? 0) > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
               {[
-                { label: 'Órdenes',    value: String(live.total_orders),        color: 'text-brand-ink'    },
-                { label: 'Total',      value: fmtMoney(live.total_revenue),     color: 'text-green-700'    },
-                { label: '💵 Efectivo', value: fmtMoney(live.cash_revenue),     color: 'text-brand-orange' },
-                { label: '💳 Tarjeta',  value: fmtMoney(live.stripe_revenue),   color: 'text-blue-600'     },
+                { label: 'Órdenes',     value: String(live.total_orders),                         color: 'text-brand-ink'    },
+                { label: 'Total',       value: fmtMoney(live.total_revenue),                      color: 'text-green-700'    },
+                { label: '💵 Efectivo', value: fmtMoney(live.cash_revenue),                       color: 'text-brand-orange' },
+                { label: '💳 Stripe',   value: fmtMoney(live.stripe_revenue),                     color: 'text-blue-600'     },
+                ...((live.card_manual_revenue ?? 0) > 0 ? [{ label: '💳 Terminal', value: fmtMoney(live.card_manual_revenue), color: 'text-indigo-600' }] : []),
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-white/80 px-3 py-3 text-center">
                   <p className={`text-lg font-black ${color}`}>{value}</p>
@@ -771,6 +790,7 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
                 <div className="flex items-center gap-3 text-xs mb-2.5">
                   <span className="font-semibold text-brand-orange">💵 {fmtMoney(day.cash)}</span>
                   <span className="font-semibold text-blue-600">💳 {fmtMoney(day.stripe)}</span>
+                  {day.cardManual > 0 && <span className="font-semibold text-indigo-600">💳T {fmtMoney(day.cardManual)}</span>}
                   {day.fees > 0 && <span className="text-brand-muted">🛵 {fmtMoney(day.fees)}</span>}
                   <span className="ml-auto text-brand-muted font-medium text-xs">{isOpen ? '▲ Ocultar' : '▼ Ver turnos'}</span>
                 </div>
@@ -799,6 +819,7 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
                             <span className="text-[10px] text-brand-muted">{s.total_orders} {s.total_orders === 1 ? 'orden' : 'órdenes'}</span>
                             <span className="text-[10px] text-brand-orange">💵 {fmtMoney(s.cash_revenue)}</span>
                             <span className="text-[10px] text-blue-600">💳 {fmtMoney(s.stripe_revenue)}</span>
+                            {(s.card_manual_revenue ?? 0) > 0 && <span className="text-[10px] text-indigo-600">💳T {fmtMoney(s.card_manual_revenue)}</span>}
                           </div>
                           <div className="h-1 rounded-full bg-brand-line overflow-hidden flex mt-2 w-24">
                             <div className="h-full bg-brand-orange" style={{ width: `${sCashPct}%` }} />

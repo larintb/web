@@ -100,9 +100,11 @@ export default function CarritoPage() {
             {/* Método de entrega */}
             <div className="px-4 py-3 rounded-2xl bg-gradient-to-r from-brand-orange/10 to-brand-red/10 border border-brand-orange/20">
               <p className="text-[10px] uppercase tracking-[0.25em] text-brand-muted font-bold">Método de entrega</p>
-              <p className="font-display text-2xl text-brand-ink mt-1">
-                {deliveryType === 'pickup' ? '🏪 Recoger en tienda' : '🛵 Domicilio'}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full text-white ${deliveryType === 'pickup' ? 'bg-green-500' : 'bg-blue-500'}`}>
+                  {deliveryType === 'pickup' ? 'Recoger' : 'Domicilio'}
+                </span>
+              </div>
             </div>
 
             {/* Mapa para recoger */}
@@ -112,6 +114,10 @@ export default function CarritoPage() {
                   address="Crispy Charles, Matamoros, Tamaulipas"
                   businessName="🍗 Crispy Charles"
                   coords={[-97.503669, 25.848049]}
+                  streetLabels={[
+                    { name: 'Av. Longoria', coords: [-97.50345869837392, 25.848335328371434], rotation: 192 },
+                    { name: 'Av. Oaxaca', coords: [-97.50351665451699, 25.848039409443185], rotation: -78 },
+                  ]}
                 />
               </div>
             )}
@@ -179,7 +185,7 @@ export default function CarritoPage() {
             {/* Propina */}
             <div className="surface-paper rounded-[28px] p-5">
               <p className="text-brand-ink font-bold text-base mb-3 flex items-center gap-2">
-                <span>🤝 Añadir propina</span>
+                <span>Propina</span>
                 {tip > 0 && (
                   <span className="text-xs bg-brand-orange/10 text-brand-orange px-2 py-0.5 rounded-lg font-bold">${tip}</span>
                 )}
@@ -241,7 +247,7 @@ export default function CarritoPage() {
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-sm text-brand-muted">
                   <span className="uppercase tracking-[0.1em] text-xs">
-                    {deliveryType === 'pickup' ? '📍 Recoger' : '🛵 Envío'}
+                    {deliveryType === 'pickup' ? 'Recoger' : 'Envío'}
                   </span>
                   <span className="font-semibold text-brand-ink">${deliveryFee}</span>
                 </div>

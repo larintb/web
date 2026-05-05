@@ -8,15 +8,16 @@ import type { Order, Settings, OrderStatus, Session, SessionSummary, Category, P
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import ExtrasPanel   from '@/components/admin/ExtrasPanel';
 import ReportsTab    from '@/components/admin/ReportsTab';
+import POSTab        from '@/components/admin/POSTab';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  new:       '📋 Nueva',
-  preparing: '👨‍🍳 Preparando',
-  ready:     '✅ Lista',
-  delivered: '🎉 Entregada',
-  cancelled: '❌ Cancelada',
+  new:       'Nueva',
+  preparing: 'Preparando',
+  ready:     'Lista',
+  delivered: 'Entregada',
+  cancelled: 'Cancelada',
 };
 
 const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -26,11 +27,37 @@ const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
-  new:       'bg-blue-50 border-blue-200 text-blue-700',
-  preparing: 'bg-orange-50 border-orange-200 text-brand-orange',
-  ready:     'bg-green-50 border-green-200 text-green-700',
-  delivered: 'bg-gray-50 border-brand-line text-brand-muted',
-  cancelled: 'bg-red-50 border-red-200 text-red-400',
+  new:       'bg-white border-2 border-blue-500',
+  preparing: 'bg-white border-2 border-orange-500',
+  ready:     'bg-white border-2 border-green-500',
+  delivered: 'bg-gray-50 border-2 border-gray-300',
+  cancelled: 'bg-white border-2 border-red-400',
+};
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  new:       'bg-blue-500 text-white',
+  preparing: 'bg-orange-500 text-white',
+  ready:     'bg-green-500 text-white',
+  delivered: 'bg-gray-400 text-white',
+  cancelled: 'bg-red-500 text-white',
+};
+
+const STATUS_FILTER_ON: Record<string, string> = {
+  all:       'bg-brand-ink text-white',
+  new:       'bg-blue-500 text-white',
+  preparing: 'bg-orange-500 text-white',
+  ready:     'bg-green-500 text-white',
+  delivered: 'bg-gray-400 text-white',
+  cancelled: 'bg-red-500 text-white',
+};
+
+const STATUS_FILTER_OFF: Record<string, string> = {
+  all:       'bg-white border border-brand-line text-brand-muted',
+  new:       'bg-blue-50 border border-blue-200 text-blue-600',
+  preparing: 'bg-orange-50 border border-orange-200 text-orange-600',
+  ready:     'bg-green-50 border border-green-200 text-green-600',
+  delivered: 'bg-gray-50 border border-gray-200 text-gray-500',
+  cancelled: 'bg-red-50 border border-red-200 text-red-500',
 };
 
 type PendingAction =
@@ -57,13 +84,15 @@ function duration(open: string, close: string | null) {
 
 
 function buildSummary(orders: Order[]): SessionSummary {
-  const cash_revenue   = orders.filter(o => o.payment_method === 'cash'   && o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
-  const stripe_revenue = orders.filter(o => o.payment_method === 'stripe' && o.payment_status === 'paid').reduce((s, o) => s + o.total, 0);
-  const delivery_fees  = orders.reduce((s, o) => s + (o.delivery_fee ?? 0), 0);
+  const active              = orders.filter(o => o.status !== 'cancelled');
+  const cash_revenue        = active.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
+  const stripe_revenue      = active.filter(o => o.payment_method === 'stripe' && o.payment_status === 'paid').reduce((s, o) => s + o.total, 0);
+  const card_manual_revenue = active.filter(o => o.payment_method === 'card_manual').reduce((s, o) => s + o.total, 0);
+  const delivery_fees       = active.reduce((s, o) => s + (o.delivery_fee ?? 0), 0);
 
   // Items
   const itemMap: Record<string, { qty: number; revenue: number }> = {};
-  for (const o of orders) {
+  for (const o of active) {
     for (const item of o.items ?? []) {
       const k = `${item.product_name} (${item.variant_name})`;
       if (!itemMap[k]) itemMap[k] = { qty: 0, revenue: 0 };
@@ -74,7 +103,7 @@ function buildSummary(orders: Order[]): SessionSummary {
 
   // Extras
   const extraMap: Record<string, { qty: number; revenue: number }> = {};
-  for (const o of orders) {
+  for (const o of active) {
     for (const e of o.extras ?? []) {
       const k = e.extra_name;
       if (!extraMap[k]) extraMap[k] = { qty: 0, revenue: 0 };
@@ -84,10 +113,11 @@ function buildSummary(orders: Order[]): SessionSummary {
   }
 
   return {
-    total_orders:   orders.length,
-    total_revenue:  cash_revenue + stripe_revenue,
+    total_orders:        active.length,
+    total_revenue:       cash_revenue + stripe_revenue + card_manual_revenue,
     cash_revenue,
     stripe_revenue,
+    card_manual_revenue,
     delivery_fees,
     items_sold:  Object.entries(itemMap).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.qty - a.qty),
     extras_sold: Object.entries(extraMap).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.qty - a.qty),
@@ -187,16 +217,19 @@ function SummaryView({ summary, session }: { summary: SessionSummary; session: S
         <div className="surface-paper rounded-2xl p-4">
           <p className="text-sm font-bold text-brand-ink mb-3">📋 Detalle de órdenes</p>
           <div className="space-y-1.5">
-            {summary.orders_snapshot.map((o, i) => (
-              <div key={i} className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-brand-muted">#{o.id.slice(0,6).toUpperCase()}</span>
-                  <span className="text-brand-ink">{o.customer_name}</span>
-                  <span className="text-xs">{o.payment_method === 'cash' ? '💵' : '💳'}</span>
+            {summary.orders_snapshot.map((o, i) => {
+              const cancelled = o.status === 'cancelled';
+              return (
+                <div key={i} className={`flex justify-between items-center text-sm ${cancelled ? 'opacity-50' : ''}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono text-xs text-brand-muted ${cancelled ? 'line-through' : ''}`}>#{o.id.slice(0,6).toUpperCase()}</span>
+                    <span className={`text-brand-ink ${cancelled ? 'line-through' : ''}`}>{o.customer_name}</span>
+                    <span className="text-xs">{cancelled ? '❌' : o.payment_method === 'cash' ? '💵' : '💳'}</span>
+                  </div>
+                  <span className={`text-brand-ink font-bold ${cancelled ? 'line-through' : ''}`}>${o.total}</span>
                 </div>
-                <span className="text-brand-ink font-bold">${o.total}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -215,6 +248,7 @@ export default function AdminPage() {
   const [filter,          setFilter]          = useState<OrderStatus | 'all'>('all');
   const [saving,          setSaving]          = useState(false);
   const [tab,             setTab]             = useState<'orders' | 'settings' | 'reports' | 'menu'>('orders');
+  const [ordersSubview,   setOrdersSubview]   = useState<'orders' | 'pos'>('orders');
   const [categories,      setCategories]      = useState<Category[]>([]);
   const [allProducts,     setAllProducts]     = useState<Product[]>([]);
   const [allExtras,       setAllExtras]       = useState<Extra[]>([]);
@@ -589,91 +623,198 @@ export default function AdminPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-6">
 
-        {/* ══════════════ TAB: ÓRDENES ══════════════ */}
+        {/* ══════════════ TAB: ÓRDENES + POS ══════════════ */}
         {tab === 'orders' && (
           <div>
-            <div className="flex gap-2 flex-wrap mb-6">
-              {(['all', 'new', 'preparing', 'ready', 'delivered', 'cancelled'] as const).map(f => (
-                <button key={f} onClick={() => setFilter(f)}
-                  className={`text-sm px-4 py-1.5 rounded-full font-semibold transition-all ${filter === f ? 'bg-brand-red text-white' : 'bg-white border border-brand-line text-brand-muted hover:text-brand-ink'}`}
-                >
-                  {f === 'all' ? 'Todas' : STATUS_LABELS[f as OrderStatus]}
-                </button>
-              ))}
+            {/* Mobile: toggle entre órdenes y caja */}
+            <div className="flex gap-2 mb-4 lg:hidden">
+              <button onClick={() => setOrdersSubview('orders')}
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${ordersSubview === 'orders' ? 'bg-brand-red text-white' : 'bg-white border border-brand-line text-brand-muted'}`}>
+                Órdenes {newCount > 0 && <span className="ml-1 bg-brand-orange text-white text-xs rounded-full px-1.5">{newCount}</span>}
+              </button>
+              <button onClick={() => setOrdersSubview('pos')}
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${ordersSubview === 'pos' ? 'bg-brand-red text-white' : 'bg-white border border-brand-line text-brand-muted'}`}>
+                🏪 Caja
+              </button>
             </div>
 
-            {!currentSession ? (
-              <div className="text-center py-20 text-brand-muted">
-                <p className="text-4xl mb-3">🔒</p>
-                <p className="font-semibold text-brand-ink">El negocio está cerrado</p>
-                <p className="text-sm mt-1">Abre el negocio para empezar a recibir órdenes</p>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-20 text-brand-muted">
-                <p className="text-4xl mb-3">🍽️</p>
-                <p>Sin órdenes {filter !== 'all' ? `"${STATUS_LABELS[filter as OrderStatus]}"` : 'en esta sesión aún'}</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredOrders.map(order => {
-                  const isDelivered = order.status === 'delivered';
+            <div className="grid lg:grid-cols-2 gap-6 items-start">
+
+              {/* ── Lista de órdenes (sticky) ── */}
+              <div className={`lg:sticky lg:top-28 lg:flex lg:flex-col lg:h-[calc(100vh-8rem)] ${ordersSubview === 'pos' ? 'hidden lg:flex' : ''}`}>
+
+                {/* ── Contador de órdenes del turno ── */}
+                {currentSession && (() => {
+                  const TIER1_MAX = 40;
+                  const validOrders = sessionOrders.filter(o => o.status !== 'cancelled');
+                  const count   = validOrders.length;
+                  const tier    = count <= TIER1_MAX ? 1 : 2;
+                  const barPct  = tier === 1
+                    ? Math.min(100, (count / TIER1_MAX) * 100)
+                    : Math.min(100, ((count - TIER1_MAX) / TIER1_MAX) * 100);
+                  const cashCount = validOrders.filter(o => o.payment_method !== 'stripe').length;
+                  const cardCount = validOrders.filter(o => o.payment_method === 'stripe').length;
                   return (
-                    <div key={order.id} className={`border rounded-2xl p-5 transition-all duration-300 ${STATUS_COLORS[order.status]} ${isDelivered ? 'opacity-50' : ''}`}>
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`font-mono font-black text-lg ${isDelivered ? 'line-through' : ''}`}>
-                              #{order.id.slice(0, 6).toUpperCase()}
-                            </span>
-                            {isDelivered && (
-                              <span className="text-xs bg-brand-line text-brand-muted font-bold px-2 py-0.5 rounded-full">✓ Completada</span>
-                            )}
-                          </div>
-                          <p className={`text-sm opacity-80 mt-0.5 ${isDelivered ? 'line-through' : ''}`}>
-                            {order.customer_name} · {order.customer_phone}
-                          </p>
-                          <p className="text-xs opacity-60 mt-0.5">
-                            {fmtTime(order.created_at)} · {order.delivery_type === 'pickup' ? '🏪 Recoger' : '🛵 Domicilio'} · {order.payment_method === 'stripe' ? '💳' : '💵'} {order.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}
-                            {order.estimated_ready_at && order.status !== 'delivered' && order.status !== 'cancelled' && (
-                              <> · ⏱ {fmtTime(order.estimated_ready_at)}</>
-                            )}
-                          </p>
+                    <div className="mb-4 flex-shrink-0 surface-paper rounded-2xl p-4">
+                      {/* Header row */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-brand-muted uppercase tracking-[0.15em]">Órdenes del turno</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${tier === 1 ? 'bg-brand-orange/20 text-brand-orange' : 'bg-purple-100 text-purple-600'}`}>
+                            T{tier}
+                          </span>
                         </div>
-                        <span className={`text-2xl font-black ${isDelivered ? 'line-through opacity-60' : ''}`}>${order.total}</span>
+                        <span className="font-display text-4xl text-brand-ink leading-none">{count}</span>
                       </div>
-                      <div className={`text-sm mb-3 space-y-0.5 ${isDelivered ? 'line-through' : ''}`}>
-                        {order.items.map((item, i) => (
-                          <p key={i} className="opacity-90">{item.qty}× {item.product_name} ({item.variant_name})</p>
-                        ))}
-                        {order.extras.map((e, i) => (
-                          <p key={i} className="opacity-70">+ {e.qty}× {e.extra_name}</p>
-                        ))}
-                        {order.notes && <p className="opacity-60 italic">📝 {order.notes}</p>}
-                        {order.delivery_address && <p className="opacity-70">📍 {order.delivery_address}</p>}
+
+                      {/* Progress bar */}
+                      <div className="h-2 rounded-full bg-brand-line overflow-hidden mb-2">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${tier === 1 ? 'bg-brand-orange' : 'bg-purple-500'}`}
+                          style={{ width: `${barPct}%` }}
+                        />
                       </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {STATUS_NEXT[order.status] && (
-                          <button
-                            onClick={() => updateOrderStatus(order.id, STATUS_NEXT[order.status]!, order.id.slice(0, 6).toUpperCase())}
-                            className="btn-primary text-sm py-2 px-4"
-                          >
-                            {order.status === 'new' ? '✅ Aceptar Orden' : `→ ${STATUS_LABELS[STATUS_NEXT[order.status]!]}`}
-                          </button>
-                        )}
-                        {order.status === 'new' && (
-                          <button
-                            onClick={() => cancelOrder(order.id, order.id.slice(0, 6).toUpperCase(), order.payment_method === 'stripe' && order.payment_status === 'paid')}
-                            className="text-sm py-2 px-4 rounded-xl border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-semibold"
-                          >
-                            ❌ Rechazar
-                          </button>
-                        )}
+                      <div className="flex justify-between text-[10px] text-brand-muted mb-3">
+                        <span>{tier === 1 ? `${count} / ${TIER1_MAX}` : `+${count - TIER1_MAX} sobre T1`}</span>
+                        <span>{tier === 1 ? `${TIER1_MAX - count} para T2` : `T1 completado ✓`}</span>
                       </div>
+
+                      {/* Desglose efectivo / tarjeta */}
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-green-500 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <div>
+                            <p className="text-xs text-green-100 leading-none">Efectivo</p>
+                            <p className="font-black text-white text-lg leading-tight">{cashCount}</p>
+                          </div>
+                        </div>
+                        <div className="flex-1 bg-blue-500 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <div>
+                            <p className="text-xs text-blue-100 leading-none">Tarjeta</p>
+                            <p className="font-black text-white text-lg leading-tight">{cardCount}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mini log de órdenes válidas */}
+                      {validOrders.length > 0 && (
+                        <div className="mt-3 space-y-1 max-h-32 overflow-y-auto">
+                          {[...validOrders].reverse().map((o, i) => (
+                            <div key={o.id} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-brand-muted font-mono w-5 text-right flex-shrink-0">{validOrders.length - i}</span>
+                                <span className="font-mono text-brand-muted">#{o.id.slice(0,6).toUpperCase()}</span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white ${o.payment_method === 'stripe' || o.payment_method === 'card_manual' ? 'bg-blue-500' : 'bg-green-500'}`}>
+                                  {o.payment_method === 'stripe' || o.payment_method === 'card_manual' ? 'T' : 'E'}
+                                </span>
+                                <span className="text-brand-muted truncate max-w-[80px]">{o.customer_name}</span>
+                              </div>
+                              <span className="font-semibold text-brand-ink">${o.total}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
-                })}
+                })()}
+
+                <div className="flex gap-2 flex-wrap mb-4 flex-shrink-0">
+                  {(['all', 'new', 'preparing', 'ready', 'delivered', 'cancelled'] as const).map(f => (
+                    <button key={f} onClick={() => setFilter(f)}
+                      className={`text-sm px-4 py-1.5 rounded-full font-semibold transition-all ${filter === f ? STATUS_FILTER_ON[f] : STATUS_FILTER_OFF[f]}`}
+                    >
+                      {f === 'all' ? 'Todas' : STATUS_LABELS[f]}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="overflow-y-auto flex-1 pr-1">
+                {!currentSession ? (
+                  <div className="text-center py-20 text-brand-muted">
+                    <p className="text-4xl mb-3">🔒</p>
+                    <p className="font-semibold text-brand-ink">El negocio está cerrado</p>
+                    <p className="text-sm mt-1">Abre el negocio para empezar a recibir órdenes</p>
+                  </div>
+                ) : filteredOrders.length === 0 ? (
+                  <div className="text-center py-20 text-brand-muted">
+                    <p className="text-4xl mb-3">🍽️</p>
+                    <p>Sin órdenes {filter !== 'all' ? `"${STATUS_LABELS[filter as OrderStatus]}"` : 'en esta sesión aún'}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredOrders.map(order => {
+                      const isDelivered = order.status === 'delivered';
+                      return (
+                        <div key={order.id} className={`rounded-2xl p-5 transition-all duration-300 ${STATUS_COLORS[order.status]} ${isDelivered ? 'opacity-50' : ''}`}>
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono font-black text-lg text-brand-ink ${isDelivered ? 'line-through' : ''}`}>
+                                  #{order.id.slice(0, 6).toUpperCase()}
+                                </span>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.status]}`}>
+                                  {STATUS_LABELS[order.status]}
+                                </span>
+                              </div>
+                              <p className={`text-sm text-brand-muted mt-0.5 ${isDelivered ? 'line-through' : ''}`}>
+                                {order.customer_name} · {order.customer_phone}
+                              </p>
+                              <p className="text-xs opacity-60 mt-0.5">
+                                {fmtTime(order.created_at)} · {order.delivery_type === 'pickup' ? '🏪 Recoger' : '🛵 Domicilio'} · {order.payment_method === 'stripe' ? '💳 Stripe' : order.payment_method === 'card_manual' ? '💳 Terminal' : '💵 Efectivo'} · {order.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}{order.source === 'pos' ? ' · 🏪 POS' : ''}
+                                {order.estimated_ready_at && order.status !== 'delivered' && order.status !== 'cancelled' && (
+                                  <> · ⏱ {fmtTime(order.estimated_ready_at)}</>
+                                )}
+                              </p>
+                            </div>
+                            <span className={`text-2xl font-black text-brand-ink ${isDelivered ? 'line-through opacity-60' : ''}`}>${order.total}</span>
+                          </div>
+                          <div className={`text-sm mb-3 space-y-0.5 text-brand-ink ${isDelivered ? 'line-through' : ''}`}>
+                            {order.items.map((item, i) => (
+                              <p key={i} className="opacity-90">{item.qty}× {item.product_name} ({item.variant_name})</p>
+                            ))}
+                            {order.extras.map((e, i) => (
+                              <p key={i} className="opacity-70">+ {e.qty}× {e.extra_name}</p>
+                            ))}
+                            {order.notes && <p className="opacity-60 italic">{order.notes}</p>}
+                            {order.delivery_address && <p className="opacity-70">{order.delivery_address}</p>}
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            {STATUS_NEXT[order.status] && (
+                              <button
+                                onClick={() => updateOrderStatus(order.id, STATUS_NEXT[order.status]!, order.id.slice(0, 6).toUpperCase())}
+                                className="btn-primary text-sm py-2 px-4"
+                              >
+                                {order.status === 'new' ? '✅ Aceptar Orden' : `→ ${STATUS_LABELS[STATUS_NEXT[order.status]!]}`}
+                              </button>
+                            )}
+                            {order.status === 'new' && (
+                              <button
+                                onClick={() => cancelOrder(order.id, order.id.slice(0, 6).toUpperCase(), order.payment_method === 'stripe' && order.payment_status === 'paid')}
+                                className="text-sm py-2 px-4 rounded-xl border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-semibold"
+                              >
+                                ❌ Rechazar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                </div>
               </div>
-            )}
+
+              {/* ── Caja POS (fluye con la página) ── */}
+              <div className={ordersSubview === 'orders' ? 'hidden lg:block' : ''}>
+                <p className="hidden lg:block text-xs text-brand-muted uppercase tracking-[0.2em] mb-3">🏪 Caja</p>
+                <POSTab
+                  categories={categories}
+                  allProducts={allProducts}
+                  allExtras={allExtras}
+                  compact
+                />
+              </div>
+
+            </div>
           </div>
         )}
 

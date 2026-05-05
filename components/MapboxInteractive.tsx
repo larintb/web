@@ -17,7 +17,8 @@ export default function MapboxInteractive({
   const map = useRef<mapboxgl.Map | null>(null);
   const [isAnimating, setIsAnimating] = useState(true);
   const bearingRef = useRef(0);
-  const animationRef = useRef<NodeJS.Timeout | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -29,12 +30,14 @@ export default function MapboxInteractive({
       return;
     }
 
+    cancelledRef.current = false;
+
     try {
       mapboxgl.accessToken = token;
 
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/satellite-v9',
+        style: 'mapbox://styles/mapbox/satellite-streets-v12',
         center: center,
         zoom: 2,
         pitch: 0,
@@ -49,13 +52,12 @@ export default function MapboxInteractive({
       });
 
       map.current.on('load', () => {
-        if (!map.current) return;
+        if (!map.current || cancelledRef.current) return;
 
-        // Marcador en la ubicación del negocio
-        const popup = new mapboxgl.Popup({ 
-          offset: 25, 
+        const popup = new mapboxgl.Popup({
+          offset: 25,
           closeButton: false,
-          closeOnClick: false 
+          closeOnClick: false
         }).setHTML(
           `<div style="padding: 8px; text-align: center; font-family: Manrope, system-ui, sans-serif; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
             <p style="font-weight: bold; margin: 0; color: #171717; font-size: 14px;">🍗 Crispy Charles</p>
@@ -68,57 +70,56 @@ export default function MapboxInteractive({
           .setPopup(popup)
           .addTo(map.current);
 
-        // ────────────────────────────────────────────────────
-        // FASE 1: Zoom suave desde el espacio (flyTo)
-        // ────────────────────────────────────────────────────
+        setIsAnimating(false);
+
+        // FASE 1: Zoom suave desde el espacio → nivel drone
         map.current.flyTo({
           center: center,
-          zoom: 13.5,
-          duration: 6000, // 6 segundos para el zoom
-          easing: (t: number) => {
-            // Easing suave: aceleración inicial, luego desaceleración
-            return t < 0.5 
-              ? 0.5 * Math.pow(2 * t, 2.5) 
-              : 1 - 0.5 * Math.pow(2 * (1 - t), 2.5);
-          }
+          zoom: 17,
+          pitch: 0,
+          bearing: 0,
+          duration: 5500,
+          curve: 1.8,
+          easing: (t: number) =>
+            t < 0.5
+              ? 0.5 * Math.pow(2 * t, 2.5)
+              : 1 - 0.5 * Math.pow(2 * (1 - t), 2.5),
         });
 
-        // ────────────────────────────────────────────────────
-        // FASE 2: Tiltar cámara después del zoom (pitch)
-        // ────────────────────────────────────────────────────
-        setTimeout(() => {
-          if (!map.current) return;
+        // FASE 2: Tiltar cámara al terminar el zoom
+        map.current.once('moveend', () => {
+          if (!map.current || cancelledRef.current) return;
 
           map.current.easeTo({
-            pitch: 60,
-            duration: 2000,
-            easing: (t: number) => {
-              // Easing de entrada suave
-              return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-            }
+            pitch: 65,
+            duration: 1800,
+            easing: (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
           });
-        }, 3000);
 
-        // ────────────────────────────────────────────────────
-        // FASE 3: Panorámica 360 continua (bearing)
-        // ────────────────────────────────────────────────────
-        if (showPanorama) {
-          setTimeout(() => {
-            if (!map.current) return;
+          // FASE 3: Panorámica 360 al terminar el tilt
+          if (showPanorama) {
+            map.current.once('pitchend', () => {
+              if (!map.current || cancelledRef.current) return;
 
-            const rotatePanorama = () => {
-              bearingRef.current = (bearingRef.current + 1) % 360;
-              if (map.current) {
-                map.current.setBearing(bearingRef.current);
-              }
-            };
+              let lastTime: number | null = null;
 
-            // Rotación continua
-            animationRef.current = setInterval(rotatePanorama, 50);
-          }, 5500);
-        }
+              const orbit = (time: number) => {
+                if (cancelledRef.current || !map.current) return;
 
-        setIsAnimating(false);
+                if (lastTime !== null) {
+                  const delta = time - lastTime;
+                  bearingRef.current = (bearingRef.current + (20 * delta) / 1000) % 360;
+                  map.current.setBearing(bearingRef.current);
+                }
+
+                lastTime = time;
+                animationRef.current = requestAnimationFrame(orbit);
+              };
+
+              animationRef.current = requestAnimationFrame(orbit);
+            });
+          }
+        });
       });
 
       map.current.on('error', (e) => {
@@ -131,13 +132,14 @@ export default function MapboxInteractive({
       setIsAnimating(false);
     }
 
-    // Cleanup
     return () => {
-      if (animationRef.current) {
-        clearInterval(animationRef.current);
+      cancelledRef.current = true;
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
       }
       if (map.current) {
         map.current.remove();
+        map.current = null;
       }
     };
   }, [center, showPanorama]);

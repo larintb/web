@@ -3,11 +3,12 @@
 // ============================================================
 
 export interface SessionSummary {
-  total_orders:   number;
-  total_revenue:  number;
-  cash_revenue:   number;
-  stripe_revenue: number;
-  delivery_fees:  number;
+  total_orders:        number;
+  total_revenue:       number;
+  cash_revenue:        number;
+  stripe_revenue:      number;
+  card_manual_revenue: number;
+  delivery_fees:       number;
   items_sold:     { name: string; qty: number; revenue: number }[];
   extras_sold:    { name: string; qty: number; revenue: number }[];
   orders_snapshot: {
@@ -92,7 +93,7 @@ export interface CartExtra {
 }
 
 export type DeliveryType = 'pickup' | 'delivery';
-export type PaymentMethod = 'stripe' | 'cash';
+export type PaymentMethod = 'stripe' | 'cash' | 'card_manual';
 export type PaymentStatus = 'pending' | 'paid' | 'refunded';
 export type OrderStatus = 'new' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 
@@ -111,9 +112,22 @@ export interface Order {
   payment_status: PaymentStatus;
   stripe_payment_intent_id: string | null;
   status: OrderStatus;
+  source: 'web' | 'pos';
   notes: string | null;
   estimated_ready_at: string | null;
   created_at: string;
+}
+
+// Payload para crear una orden desde el POS (admin)
+export interface CreatePOSOrderPayload {
+  customer_name:  string;
+  customer_phone?: string;
+  items:          CartItem[];
+  extras:         CartExtra[];
+  subtotal:       number;
+  total:          number;
+  payment_method: 'cash' | 'card_manual';
+  notes?:         string;
 }
 
 // Payload para crear una orden

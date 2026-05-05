@@ -8,6 +8,41 @@ import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import type { Order } from '@/types';
 
+// ── Preparing animation ───────────────────────────────────────────────────
+const PREP_VIDEOS = [
+  { src: '/videos/prep-flour.mp4', label: 'Empanizando…' },
+  { src: '/videos/prep-fryer.mp4', label: 'En la freidora…' },
+  { src: '/videos/prep-pack.mp4',  label: 'Empacando…'  },
+];
+
+function PreparingAnimation() {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % PREP_VIDEOS.length), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const { src, label } = PREP_VIDEOS[idx];
+
+  return (
+    <div className="surface-paper rounded-[28px] overflow-hidden">
+      <video
+        key={src}
+        src={src}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="w-full aspect-video object-cover"
+      />
+      <p className="text-center text-xs uppercase tracking-[0.2em] text-brand-muted font-semibold py-3">
+        {label}
+      </p>
+    </div>
+  );
+}
+
 // Cargar MapboxMap de forma dinámica para mejor SSR performance
 const MapboxMap = dynamic(() => import('@/components/MapboxMap').then(m => ({ default: m.MapboxMap })), { 
   ssr: false,
@@ -143,6 +178,9 @@ export default function OrderPage() {
             {hero.subtitle(order)}
           </p>
         </div>
+
+        {/* ── Preparing animation ── */}
+        {order.status === 'preparing' && <PreparingAnimation />}
 
         {/* ── ETA block — solo si activa y tiene estimado ── */}
         {(order.status === 'new' || order.status === 'preparing') && order.estimated_ready_at && (
@@ -298,10 +336,14 @@ export default function OrderPage() {
               <div className="mt-4 pt-4 border-t border-dashed border-brand-line">
                 <p className="text-xs uppercase tracking-[0.2em] text-brand-muted font-semibold mb-3">🏪 Vista ubicación del negocio</p>
                 <div className="rounded-2xl overflow-hidden border border-brand-line h-80 shadow-lg">
-                  <MapboxMap 
+                  <MapboxMap
                     address="Crispy Charles, Matamoros, Tamaulipas"
                     businessName="🍗 Crispy Charles"
                     coords={[-97.503669, 25.848049]}
+                    streetLabels={[
+                      { name: 'Av. Longoria', coords: [-97.50345869837392, 25.848335328371434], rotation: 192 },
+                      { name: 'Av. Oaxaca', coords: [-97.50351665451699, 25.848039409443185], rotation: -78 },
+                    ]}
                   />
                 </div>
               </div>

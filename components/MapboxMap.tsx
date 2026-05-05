@@ -2,16 +2,24 @@
 
 import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+
+export interface StreetLabel {
+  name: string
+  coords: [number, number] // [lng, lat] where to pin the label
+  rotation?: number        // degrees clockwise from East — 0 = E-W street, 90 = N-S street
+}
 
 interface MapboxMapProps {
   address: string
   businessName: string
   coords?: [number, number] // [lng, lat] - if provided, skips geocoding
+  streetLabels?: StreetLabel[] // optional: manual street/avenue labels to overlay
   className?: string
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
+
+
 
 async function geocodeAddress(address: string): Promise<[number, number] | null> {
   if (!MAPBOX_TOKEN) return null
@@ -29,10 +37,11 @@ async function geocodeAddress(address: string): Promise<[number, number] | null>
   }
 }
 
-export function MapboxMap({ address, businessName, coords: coordsProp, className = '' }: MapboxMapProps) {
+export function MapboxMap({ address, businessName, coords: coordsProp, streetLabels, className = '' }: MapboxMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const animationExecutedRef = useRef<string | null>(null)
+  const poiMarkersRef = useRef<mapboxgl.Marker[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,6 +86,7 @@ export function MapboxMap({ address, businessName, coords: coordsProp, className
         mapRef.current.remove()
         mapRef.current = null
       }
+      poiMarkersRef.current = []
 
       mapboxgl.accessToken = MAPBOX_TOKEN
       const isMobile = 'ontouchstart' in window
@@ -85,9 +95,9 @@ export function MapboxMap({ address, businessName, coords: coordsProp, className
         container: mapContainerRef.current,
         style: 'mapbox://styles/mapbox/standard',
         center: coords,
-        zoom: 20,
-        pitch: 70,
-        bearing: -20,
+        zoom: 14,
+        pitch: 0,
+        bearing: 0,
         antialias: !isMobile,
         attributionControl: true,
       })
@@ -133,40 +143,250 @@ export function MapboxMap({ address, businessName, coords: coordsProp, className
         if (cancelled) return
 
         map.setConfigProperty('basemap', 'lightPreset', 'dusk')
+        map.setConfigProperty('basemap', 'showPointOfInterestLabels', true)
+        map.setConfigProperty('basemap', 'showRoadLabels', true)
+
         setIsLoaded(true)
         marker.addTo(map)
+
+        // Pulsing halo rings — GPU-accelerated, no JS loop needed
+        map.addSource('biz-halo', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} },
+        })
+
+        map.addLayer({
+          id: 'biz-halo-outer',
+          type: 'circle',
+          source: 'biz-halo',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 22, 18, 90],
+            'circle-color': '#6366F1',
+            'circle-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 15.5, 0.06, 18, 0.09],
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#6366F1',
+            'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 16, 0.3, 18, 0.45],
+            'circle-blur': 0.55,
+          },
+        })
+
+        map.addLayer({
+          id: 'biz-halo-inner',
+          type: 'circle',
+          source: 'biz-halo',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 10, 18, 38],
+            'circle-color': '#6366F1',
+            'circle-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 16, 0.12, 18, 0.18],
+            'circle-blur': 0.3,
+          },
+        })
 
         if (animationExecutedRef.current !== coordsKey) {
           animationExecutedRef.current = coordsKey
 
           map.flyTo({
             center: coords,
-            zoom: 20,
-            pitch: 70,
+            zoom: 16.5,
+            pitch: 50,
             bearing: -20,
             duration: 4000,
-            curve: 1.4,
+            curve: 1.2,
             easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
           })
 
+          // ── Street pins con label — visibles desde que empieza el vuelo ─
+          if (streetLabels && streetLabels.length > 0 && !cancelled) {
+            streetLabels.forEach((sl, i) => {
+              const wrapper = document.createElement('div')
+              wrapper.style.cssText = [
+                'display:flex', 'flex-direction:column', 'align-items:center',
+                'pointer-events:none',
+                'opacity:0', 'transform:scale(0.6)',
+                'transform-origin:top center',
+                'transition:opacity 0.4s ease, transform 0.4s ease',
+                'will-change:opacity,transform',
+              ].join(';')
+
+              const dot = document.createElement('div')
+              dot.style.cssText = [
+                'width:11px', 'height:11px',
+                'background:#facc15',
+                'border:2.5px solid rgba(255,255,255,0.95)',
+                'border-radius:50%',
+                'box-shadow:0 0 10px rgba(250,204,21,0.65)',
+              ].join(';')
+
+              const label = document.createElement('span')
+              label.textContent = sl.name
+              label.style.cssText = [
+                'margin-top:4px',
+                'white-space:nowrap',
+                'font-size:11px',
+                'font-weight:700',
+                'letter-spacing:0.12em',
+                'text-transform:uppercase',
+                'color:#fff',
+                'font-family:system-ui,sans-serif',
+                'text-shadow:0 1px 5px rgba(0,0,0,0.95)',
+                'background:rgba(0,0,0,0.45)',
+                'padding:2px 6px',
+                'border-radius:5px',
+              ].join(';')
+
+              wrapper.appendChild(dot)
+              wrapper.appendChild(label)
+
+              const pinMarker = new mapboxgl.Marker({ element: wrapper, anchor: 'top' })
+                .setLngLat(sl.coords)
+                .addTo(map)
+
+              poiMarkersRef.current.push(pinMarker)
+
+              setTimeout(() => {
+                if (cancelled) return
+                wrapper.style.opacity = '1'
+                wrapper.style.transform = 'scale(1)'
+              }, 600 + i * 180)
+            })
+          }
+
           const onFlyEnd = () => {
             if (cancelled) return
-            if (map.getZoom() < 10) {
-              map.once('moveend', onFlyEnd)
-              return
+
+            // ── Auto-detect street labels (solo si no hay manuales) ───
+            if (!streetLabels || streetLabels.length === 0) {
+              const center = map.project(coords)
+              const pad = isMobile ? 130 : 220
+              const roads = map.queryRenderedFeatures(
+                [[center.x - pad, center.y - pad], [center.x + pad, center.y + pad]]
+              ).filter(f => f.geometry.type === 'LineString' && f.properties?.name)
+
+              const unique = Array.from(
+                new Map(roads.map(f => [String(f.properties?.name), f])).values()
+              ).slice(0, isMobile ? 2 : 3)
+
+              if (unique.length > 0) {
+                const lineGeoJSON: GeoJSON.FeatureCollection = {
+                  type: 'FeatureCollection',
+                  features: unique.map(f => ({
+                    type: 'Feature',
+                    geometry: f.geometry,
+                    properties: { name: String(f.properties?.name) },
+                  })),
+                }
+                map.addSource('street-lines', { type: 'geojson', data: lineGeoJSON })
+                map.addLayer({
+                  id: 'street-line-glow',
+                  type: 'line',
+                  source: 'street-lines',
+                  paint: { 'line-color': '#facc15', 'line-width': isMobile ? 2 : 3, 'line-opacity': 0, 'line-blur': 2 },
+                })
+                map.addLayer({
+                  id: 'street-line-label',
+                  type: 'symbol',
+                  source: 'street-lines',
+                  layout: {
+                    'symbol-placement': 'line',
+                    'text-field': ['get', 'name'],
+                    'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+                    'text-size': isMobile ? 11 : 13,
+                    'text-max-angle': 30,
+                    'text-pitch-alignment': 'map',
+                    'text-rotation-alignment': 'map',
+                    'text-padding': 12,
+                    'text-letter-spacing': 0.06,
+                  },
+                  paint: { 'text-color': '#facc15', 'text-halo-color': 'rgba(0,0,0,0.85)', 'text-halo-width': 2, 'text-opacity': 0 },
+                })
+                setTimeout(() => {
+                  if (cancelled) return
+                  map.setPaintProperty('street-line-glow', 'line-opacity', 0.35)
+                  map.setPaintProperty('street-line-label', 'text-opacity', 1)
+                }, 300)
+              }
             }
 
-            dotEl.animate(
-              [
-                { transform: 'scale(0) translateY(-14px)', opacity: 0 },
-                { transform: 'scale(1.45) translateY(0)', opacity: 1, offset: 0.52 },
-                { transform: 'scale(0.80) translateY(0)', offset: 0.70 },
-                { transform: 'scale(1.18) translateY(0)', offset: 0.85 },
-                { transform: 'scale(0.95) translateY(0)', offset: 0.93 },
-                { transform: 'scale(1) translateY(0)', opacity: 1 },
-              ],
-              { duration: 680, easing: 'ease-out', fill: 'forwards' }
-            )
+            // ── Nearby POI pins via Geocoding API ────────────────────
+            const POI_CATEGORIES: { query: string; color: string }[] = [
+              { query: 'hospital',  color: '#f472b6' },
+              { query: 'pharmacy',  color: '#34d399' },
+              { query: 'school',    color: '#fbbf24' },
+              { query: 'restaurant',color: '#f97316' },
+              { query: 'supermarket', color: '#60a5fa' },
+            ]
+
+            const maxPerCat = isMobile ? 1 : 2
+            const seen = new Set<string>()
+            let pinIndex = 0
+
+            const addPoiMarker = (name: string, lngLat: [number, number], color: string) => {
+              if (cancelled || seen.has(name)) return
+              seen.add(name)
+
+              const el = document.createElement('div')
+              el.style.cssText = [
+                'display:flex', 'flex-direction:column', 'align-items:center',
+                'pointer-events:none',
+                'opacity:0', 'transform:translateY(6px) scale(0.7)',
+                'transform-origin:top center',
+                'transition:opacity 0.45s ease, transform 0.45s ease',
+                'will-change:opacity,transform',
+              ].join(';')
+
+              const dot = document.createElement('div')
+              dot.style.cssText = [
+                'width:9px', 'height:9px',
+                `background:${color}`,
+                'border:1.5px solid rgba(255,255,255,0.9)',
+                'border-radius:50%',
+                `box-shadow:0 0 7px ${color}99`,
+              ].join(';')
+
+              const lbl = document.createElement('span')
+              lbl.textContent = name.length > 18 ? name.slice(0, 17) + '…' : name
+              lbl.style.cssText = [
+                'margin-top:3px', 'white-space:nowrap',
+                'font-size:9px', 'font-weight:700',
+                'letter-spacing:0.04em', 'color:#fff',
+                'font-family:system-ui,sans-serif',
+                'text-shadow:0 1px 4px rgba(0,0,0,0.9)',
+                'background:rgba(0,0,0,0.4)',
+                'padding:1px 5px', 'border-radius:4px',
+              ].join(';')
+
+              el.appendChild(dot)
+              el.appendChild(lbl)
+
+              const m = new mapboxgl.Marker({ element: el, anchor: 'top' })
+                .setLngLat(lngLat)
+                .addTo(map)
+              poiMarkersRef.current.push(m)
+
+              const idx = pinIndex++
+              setTimeout(() => {
+                if (cancelled) return
+                el.style.opacity = '1'
+                el.style.transform = 'translateY(0) scale(1)'
+              }, idx * 100 + 200)
+            }
+
+            POI_CATEGORIES.forEach(({ query, color }) => {
+              fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json` +
+                `?proximity=${coords[0]},${coords[1]}&types=poi&limit=${maxPerCat}&access_token=${MAPBOX_TOKEN}`
+              )
+                .then(r => r.json())
+                .then(data => {
+                  if (cancelled) return
+                  for (const f of (data.features ?? [])) {
+                    const name = String(f.text ?? f.place_name ?? '').trim()
+                    if (!name) continue
+                    addPoiMarker(name, f.center as [number, number], color)
+                  }
+                })
+                .catch(() => null)
+            })
 
             const ORBIT_THROTTLE_MS = isMobile ? 33 : 16
             let lastTime: number | null = null
@@ -180,7 +400,7 @@ export function MapboxMap({ address, businessName, coords: coordsProp, className
               if (lastTime !== null) {
                 const delta = time - lastTime
                 const step = (15 * delta) / 1000
-                bearing += step
+                bearing -= step
                 totalRotated += step
 
                 if (totalRotated >= 360) return
@@ -210,13 +430,16 @@ export function MapboxMap({ address, businessName, coords: coordsProp, className
     return () => {
       cancelled = true
       if (droneFrame !== null) cancelAnimationFrame(droneFrame)
+      poiMarkersRef.current.forEach((m) => m.remove())
+      poiMarkersRef.current = []
       if (mapRef.current) {
         mapRef.current.stop()
         mapRef.current.remove()
         mapRef.current = null
       }
     }
-  }, [address, businessName, coordsLng, coordsLat, coordsKey])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, businessName, coordsLng, coordsLat, coordsKey, streetLabels])
 
   if (!address?.trim()) {
     return (
