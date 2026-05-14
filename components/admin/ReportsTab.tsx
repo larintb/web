@@ -114,12 +114,13 @@ function groupSessionsByDay(sessions: Session[]) {
   const map = new Map<string, {
     label: string; sessions: Session[];
     revenue: number; orders: number; cash: number; stripe: number; cardManual: number; fees: number;
+    cashCount: number; stripeCount: number; cardManualCount: number;
   }>();
   for (const s of sessions) {
     if (!s.closed_at || !s.summary) continue;
     const key   = localDateKey(s.opened_at);
     const label = new Date(s.opened_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    if (!map.has(key)) map.set(key, { label, sessions: [], revenue: 0, orders: 0, cash: 0, stripe: 0, cardManual: 0, fees: 0 });
+    if (!map.has(key)) map.set(key, { label, sessions: [], revenue: 0, orders: 0, cash: 0, stripe: 0, cardManual: 0, fees: 0, cashCount: 0, stripeCount: 0, cardManualCount: 0 });
     const day = map.get(key)!;
     day.sessions.push(s);
     day.revenue    += s.summary.total_revenue;
@@ -128,6 +129,12 @@ function groupSessionsByDay(sessions: Session[]) {
     day.stripe     += s.summary.stripe_revenue;
     day.cardManual += s.summary.card_manual_revenue ?? 0;
     day.fees       += s.summary.delivery_fees;
+    for (const snap of s.summary.orders_snapshot ?? []) {
+      if (snap.status === 'cancelled') continue;
+      if (snap.payment_method === 'cash') day.cashCount++;
+      else if (snap.payment_method === 'stripe') day.stripeCount++;
+      else if (snap.payment_method === 'card_manual') day.cardManualCount++;
+    }
   }
   return [...map.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([key, val]) => ({ key, ...val }));
 }
@@ -256,9 +263,35 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
 
     const revenue       = completed.reduce((s, o) => s + o.total, 0);
     const avgTicket     = completed.length > 0 ? Math.round(revenue / completed.length) : 0;
-    const cashRev       = completed.filter(o => o.payment_method === 'cash').reduce((s, o) => s + o.total, 0);
-    const stripeRev     = completed.filter(o => o.payment_method === 'stripe').reduce((s, o) => s + o.total, 0);
-    const cardManualRev = completed.filter(o => o.payment_method === 'card_manual').reduce((s, o) => s + o.total, 0);
+    const cashOrders      = completed.filter(o => o.payment_method === 'cash');
+    const stripeOrders    = completed.filter(o => o.payment_method === 'stripe');
+    const cardManualOrders= completed.filter(o => o.payment_method === 'card_manual');
+    const cashRev         = cashOrders.reduce((s, o) => s + o.total, 0);
+    const stripeRev       = stripeOrders.reduce((s, o) => s + o.total, 0);
+    const cardManualRev   = cardManualOrders.reduce((s, o) => s + o.total, 0);
+    const cashCount       = cashOrders.length;
+    const stripeCount     = stripeOrders.length;
+    const cardManualCount = cardManualOrders.length;
+
+    // Per-day breakdown by payment method
+    const dayPayMap = new Map<string, { label: string; cash: number; stripe: number; cardManual: number; total: number }>();
+    for (const o of completed) {
+      const key = localDateKey(o.created_at);
+      if (!dayPayMap.has(key)) {
+        dayPayMap.set(key, {
+          label: new Date(key + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }),
+          cash: 0, stripe: 0, cardManual: 0, total: 0,
+        });
+      }
+      const d = dayPayMap.get(key)!;
+      d.total++;
+      if (o.payment_method === 'cash') d.cash++;
+      else if (o.payment_method === 'stripe') d.stripe++;
+      else if (o.payment_method === 'card_manual') d.cardManual++;
+    }
+    const dayPayBreakdown = [...dayPayMap.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, v]) => ({ key, ...v }));
     const cancelLoss    = cancelled.reduce((s, o) => s + o.total, 0);
     const cancelRate = orders.length > 0 ? Math.round(cancelled.length / orders.length * 100) : 0;
 
@@ -363,6 +396,8 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
       revenue, avgTicket,
       orderCount: completed.length, cancelCount: cancelled.length, cancelRate, cancelLoss,
       cashRev, stripeRev, cardManualRev,
+      cashCount, stripeCount, cardManualCount,
+      dayPayBreakdown,
       cashPct:    revenue > 0 ? Math.round(cashRev / revenue * 100) : 50,
       pickupCount, deliveryCount,
       pickupPct:  (pickupCount + deliveryCount) > 0 ? Math.round(pickupCount / (pickupCount + deliveryCount) * 100) : 50,
@@ -459,19 +494,52 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
             <div className="surface-paper rounded-2xl p-4">
               <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-1">💵 Efectivo</p>
               <p className="text-2xl font-black text-brand-orange">{fmtMoney(a.cashRev)}</p>
-              <p className="text-[10px] text-brand-muted mt-0.5">{a.cashPct}% del total</p>
+              <p className="text-[10px] text-brand-muted mt-0.5">{a.cashCount} {a.cashCount === 1 ? 'orden' : 'órdenes'} · {a.cashPct}%</p>
             </div>
             <div className="surface-paper rounded-2xl p-4">
               <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Stripe</p>
               <p className="text-2xl font-black text-blue-600">{fmtMoney(a.stripeRev)}</p>
+              <p className="text-[10px] text-brand-muted mt-0.5">{a.stripeCount} {a.stripeCount === 1 ? 'orden' : 'órdenes'}</p>
             </div>
             {a.cardManualRev > 0 && (
               <div className="surface-paper rounded-2xl p-4 col-span-2">
                 <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-1">💳 Terminal (POS)</p>
                 <p className="text-2xl font-black text-indigo-600">{fmtMoney(a.cardManualRev)}</p>
+                <p className="text-[10px] text-brand-muted mt-0.5">{a.cardManualCount} {a.cardManualCount === 1 ? 'orden' : 'órdenes'}</p>
               </div>
             )}
           </div>
+
+          {/* ── Órdenes por método por día ── */}
+          {a.dayPayBreakdown.length > 0 && (
+            <div className="surface-paper rounded-2xl p-4">
+              <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-3">Órdenes por método de pago · por día</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-brand-muted text-left">
+                      <th className="pb-2 font-semibold">Fecha</th>
+                      <th className="pb-2 font-semibold text-right text-brand-orange">Efectivo</th>
+                      <th className="pb-2 font-semibold text-right text-blue-600">Stripe</th>
+                      <th className="pb-2 font-semibold text-right text-indigo-600">Terminal</th>
+                      <th className="pb-2 font-semibold text-right text-brand-ink">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-line">
+                    {a.dayPayBreakdown.map(d => (
+                      <tr key={d.key}>
+                        <td className="py-2 text-brand-ink capitalize">{d.label}</td>
+                        <td className="py-2 text-right font-semibold text-brand-orange">{d.cash > 0 ? d.cash : '—'}</td>
+                        <td className="py-2 text-right font-semibold text-blue-600">{d.stripe > 0 ? d.stripe : '—'}</td>
+                        <td className="py-2 text-right font-semibold text-indigo-600">{d.cardManual > 0 ? d.cardManual : '—'}</td>
+                        <td className="py-2 text-right font-black text-brand-ink">{d.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* ── Cancellations + Delivery split ── */}
           <div className="grid grid-cols-2 gap-3">
@@ -787,10 +855,10 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
                     <p className="text-xs text-brand-muted">{day.orders} {day.orders === 1 ? 'orden' : 'órdenes'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-xs mb-2.5">
-                  <span className="font-semibold text-brand-orange">💵 {fmtMoney(day.cash)}</span>
-                  <span className="font-semibold text-blue-600">💳 {fmtMoney(day.stripe)}</span>
-                  {day.cardManual > 0 && <span className="font-semibold text-indigo-600">💳T {fmtMoney(day.cardManual)}</span>}
+                <div className="flex items-center gap-3 text-xs mb-2.5 flex-wrap">
+                  <span className="font-semibold text-brand-orange">💵 {fmtMoney(day.cash)} <span className="font-normal text-brand-muted">({day.cashCount})</span></span>
+                  <span className="font-semibold text-blue-600">💳 {fmtMoney(day.stripe)} <span className="font-normal text-brand-muted">({day.stripeCount})</span></span>
+                  {day.cardManual > 0 && <span className="font-semibold text-indigo-600">Terminal {fmtMoney(day.cardManual)} <span className="font-normal text-brand-muted">({day.cardManualCount})</span></span>}
                   {day.fees > 0 && <span className="text-brand-muted">🛵 {fmtMoney(day.fees)}</span>}
                   <span className="ml-auto text-brand-muted font-medium text-xs">{isOpen ? '▲ Ocultar' : '▼ Ver turnos'}</span>
                 </div>
