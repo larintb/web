@@ -247,7 +247,7 @@ export default function AdminPage() {
   const [currentSession,  setCurrentSession]  = useState<Session | null>(null);
   const [filter,          setFilter]          = useState<OrderStatus | 'all'>('all');
   const [saving,          setSaving]          = useState(false);
-  const [tab,             setTab]             = useState<'orders' | 'settings' | 'reports' | 'menu'>('orders');
+  const [tab,             setTab]             = useState<'orders' | 'settings' | 'reports' | 'menu' | 'waiter'>('orders');
   const [ordersSubview,   setOrdersSubview]   = useState<'orders' | 'pos'>('orders');
   const [categories,      setCategories]      = useState<Category[]>([]);
   const [allProducts,     setAllProducts]     = useState<Product[]>([]);
@@ -608,11 +608,12 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="max-w-5xl mx-auto px-4 pb-3 flex gap-1">
-          {(['orders', 'reports', 'menu', 'settings'] as const).map(t => (
+          {(['orders', 'waiter', 'reports', 'menu', 'settings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${tab === t ? 'bg-brand-red text-white' : 'text-brand-muted hover:text-brand-ink'}`}
             >
               {t === 'orders'   && <>Órdenes {newCount > 0 && <span className="ml-1 bg-brand-orange text-white text-xs rounded-full px-1.5">{newCount}</span>}</>}
+              {t === 'waiter'   && 'Mesero'}
               {t === 'reports'  && 'Reportes'}
               {t === 'menu'     && 'Menú'}
               {t === 'settings' && 'Configuración'}
@@ -816,6 +817,16 @@ export default function AdminPage() {
 
             </div>
           </div>
+        )}
+
+        {/* ══════════════ TAB: MESERO ══════════════ */}
+        {tab === 'waiter' && (
+          <POSTab
+            categories={categories}
+            allProducts={allProducts}
+            allExtras={allExtras}
+            compact
+          />
         )}
 
         {/* ══════════════ TAB: REPORTES ══════════════ */}

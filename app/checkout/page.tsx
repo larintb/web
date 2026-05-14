@@ -92,6 +92,7 @@ export default function CheckoutPage() {
   const [notes,           setNotes]           = useState('');
   const [cashLoading,     setCashLoading]     = useState(false);
   const [activeOrders,    setActiveOrders]    = useState(0);
+  const [prepMins,        setPrepMins]        = useState(20);
   // Timing del pedido
   const [orderTiming,     setOrderTiming]     = useState<'now' | 'later'>('now');
   const [scheduledTime,   setScheduledTime]   = useState('');
@@ -102,32 +103,37 @@ export default function CheckoutPage() {
     if (!deliveryType || items.length === 0) { router.replace('/'); return; }
     const supabase = createClient();
 
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     Promise.all([
       supabase.from('extras').select('*').eq('active', true).order('display_order'),
-      supabase.from('settings').select('business_hours').eq('id', 1).single(),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['new', 'preparing']),
+      supabase.from('settings').select('business_hours, prep_minutes_per_batch').eq('id', 1).single(),
+      supabase.from('orders').select('id', { count: 'exact', head: true })
+        .in('status', ['new', 'preparing'])
+        .gte('created_at', todayStart.toISOString()),
     ]).then(([{ data: extras }, { data: cfg }, { count }]) => {
       setAvailableExtras(extras ?? []);
       setActiveOrders((count ?? 0) as number);
 
+      const batch = cfg?.prep_minutes_per_batch ?? 20;
+      setPrepMins(batch);
       const match = (cfg?.business_hours ?? '').match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
-      setTimeSlots(generateSlots(match?.[2] ?? '22:00', (count ?? 0) as number));
+      setTimeSlots(generateSlots(match?.[2] ?? '22:00', (count ?? 0) as number, batch));
     });
   }, [submitted, deliveryType, items, router]);
 
-  // Genera franjas de 20 min. El buffer crece 20min por cada orden activa en cola:
-  // 0 órdenes → +20min, 1 orden → +40min, 2 → +60min, etc.
-  function generateSlots(closingTime: string, queueCount: number): string[] {
+  function generateSlots(closingTime: string, queueCount: number, prepMins = 20): string[] {
     const [closeH, closeM] = closingTime.split(':').map(Number);
     const closeTotal = closeH * 60 + closeM;
 
     const now        = new Date();
     const nowMins    = now.getHours() * 60 + now.getMinutes();
-    const bufferMins = 20 * (queueCount + 1);
-    const firstSlot  = Math.ceil((nowMins + bufferMins) / 20) * 20;
+    const bufferMins = prepMins * (queueCount + 1);
+    const firstSlot  = Math.ceil((nowMins + bufferMins) / prepMins) * prepMins;
 
     const slots: string[] = [];
-    for (let m = firstSlot; m <= closeTotal; m += 20) {
+    for (let m = firstSlot; m <= closeTotal; m += prepMins) {
       const hh = String(Math.floor(m / 60)).padStart(2, '0');
       const mm = String(m % 60).padStart(2, '0');
       slots.push(`${hh}:${mm}`);
@@ -221,8 +227,8 @@ export default function CheckoutPage() {
             <div className="bg-brand-orange/10 border border-brand-orange/30 rounded-2xl p-3 text-center">
               <p className="text-sm text-brand-ink font-semibold">
                 {activeOrders < 5
-                  ? '⏱ Tiempo estimado: 20-35 min'
-                  : '⏱ Cocina ocupada — más de 35 min de espera'}
+                  ? `⏱ Tiempo estimado: ${prepMins}–${prepMins + 15} min`
+                  : `⏱ Cocina ocupada — más de ${prepMins + 15} min de espera`}
               </p>
             </div>
             <div className="surface-paper rounded-[28px] p-5 space-y-4">
@@ -300,7 +306,7 @@ export default function CheckoutPage() {
                   )}
                   {activeOrders > 0 && (
                     <p className="text-brand-muted text-xs mt-1.5 text-center">
-                      {activeOrders} {activeOrders === 1 ? 'orden' : 'órdenes'} en cocina — primer slot disponible en ~{20 * (activeOrders + 1)} min
+                      {activeOrders} {activeOrders === 1 ? 'orden' : 'órdenes'} en cocina — primer slot disponible en ~{prepMins * (activeOrders + 1)} min
                     </p>
                   )}
                   {scheduledTime && (
@@ -389,9 +395,8 @@ export default function CheckoutPage() {
                       { src: 'https://images.icon-icons.com/2342/PNG/512/mastercard_payment_method_icon_142750.png', alt: 'Mastercard' },
                       { src: 'https://images.icon-icons.com/1186/PNG/512/1490135020-american-express_82257.png', alt: 'Amex' },
                     ].map(({ src, alt }) => (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <span key={alt} className="bg-white rounded px-1.5 py-0.5 flex items-center">
-                        <img src={src} alt={alt} className="h-4 object-contain" />
+                        <Image src={src} alt={alt} width={32} height={16} className="h-4 w-auto object-contain" unoptimized />
                       </span>
                     ))}
                   </div>
