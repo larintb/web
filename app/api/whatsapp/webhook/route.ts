@@ -6,12 +6,15 @@ export async function POST(req: NextRequest) {
   try {
     const payload: GatewayWebhookPayload = await req.json();
 
-    // Solo procesar mensajes entrantes
-    if (payload.event !== 'message') {
+    if (payload.event !== 'message.received') {
       return NextResponse.json({ ok: true });
     }
 
-    const from = payload.data?.fromNumber ?? payload.data?.from;
+    if (payload.data?.key?.fromMe) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const from = payload.data?.from ?? payload.data?.key?.remoteJid?.split('@')[0];
     if (!from) return NextResponse.json({ ok: true });
 
     const supabase = createServiceClient();
@@ -42,12 +45,20 @@ export async function POST(req: NextRequest) {
 
 interface GatewayWebhookPayload {
   event: string;
-  timestamp?: number;
   data?: {
-    from?:       string;
-    fromNumber?: string;
-    fromName?:   string;
-    body?:       string;
-    type?:       string;
+    key?: {
+      id?: string;
+      fromMe?: boolean;
+      remoteJid?: string;
+    };
+    message?: {
+      type?: string;
+      body?: string;
+      timestamp?: number;
+      hasMedia?: boolean;
+    };
+    pushName?: string;
+    from?: string;
+    fromName?: string;
   };
 }
