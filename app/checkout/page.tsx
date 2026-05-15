@@ -84,7 +84,7 @@ export default function CheckoutPage() {
   const [step,            setStep]            = useState<'info' | 'extras' | 'payment'>('info');
   const [submitted,       setSubmitted]       = useState(false);
   const [availableExtras, setAvailableExtras] = useState<Extra[]>([]);
-  const [paymentMethod,   setPaymentMethod]   = useState<'stripe' | 'cash'>('stripe');
+  const [paymentMethod] = useState<'stripe' | 'cash'>('cash');
   const [clientSecret,    setClientSecret]    = useState('');
   const [name,            setName]            = useState('');
   const [phone,           setPhone]           = useState('');
@@ -384,33 +384,10 @@ export default function CheckoutPage() {
             {/* Método de pago */}
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-brand-muted mb-3">Pago</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setPaymentMethod('stripe')}
-                  className={`p-4 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'stripe' ? 'border-blue-500 bg-blue-500' : 'border-brand-line bg-white hover:border-blue-300'}`}
-                >
-                  <div className="flex gap-1.5 justify-center items-center mb-2">
-                    {[
-                      { src: 'https://images.icon-icons.com/1316/PNG/512/if-visa-2593666_86609.png', alt: 'Visa' },
-                      { src: 'https://images.icon-icons.com/2342/PNG/512/mastercard_payment_method_icon_142750.png', alt: 'Mastercard' },
-                      { src: 'https://images.icon-icons.com/1186/PNG/512/1490135020-american-express_82257.png', alt: 'Amex' },
-                    ].map(({ src, alt }) => (
-                      <span key={alt} className="bg-white rounded px-1.5 py-0.5 flex items-center">
-                        <Image src={src} alt={alt} width={32} height={16} className="h-4 w-auto object-contain" unoptimized />
-                      </span>
-                    ))}
-                  </div>
-                  <p className={`font-bold text-sm ${paymentMethod === 'stripe' ? 'text-white' : 'text-brand-ink'}`}>Tarjeta</p>
-                  <p className={`text-xs ${paymentMethod === 'stripe' ? 'text-blue-100' : 'text-brand-muted'}`}>Pago seguro</p>
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('cash')}
-                  className={`p-4 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'cash' ? 'border-green-500 bg-green-500' : 'border-brand-line bg-white hover:border-green-300'}`}
-                >
-                  <div className={`text-xs font-black uppercase tracking-widest mb-2 ${paymentMethod === 'cash' ? 'text-green-100' : 'text-brand-muted'}`}>MXN</div>
-                  <p className={`font-bold text-sm ${paymentMethod === 'cash' ? 'text-white' : 'text-brand-ink'}`}>Efectivo</p>
-                  <p className={`text-xs ${paymentMethod === 'cash' ? 'text-green-100' : 'text-brand-muted'}`}>Pagar al recibir</p>
-                </button>
+              <div className="p-4 rounded-2xl border-2 border-green-500 bg-green-500 text-center">
+                <div className="text-xs font-black uppercase tracking-widest mb-2 text-green-100">MXN</div>
+                <p className="font-bold text-sm text-white">Efectivo</p>
+                <p className="text-xs text-green-100">Pagar al recibir</p>
               </div>
             </div>
 
