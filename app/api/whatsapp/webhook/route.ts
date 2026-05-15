@@ -14,10 +14,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const from = payload.data?.from ?? payload.data?.key?.remoteJid?.split('@')[0];
-    if (!from) return NextResponse.json({ ok: true });
+    const rawJid = payload.data?.from ?? payload.data?.key?.remoteJid;
+    if (!rawJid) return NextResponse.json({ ok: true });
+
+    // Strip @s.whatsapp.net / @c.us suffix
+    const digits = rawJid.split('@')[0];
+    // Normalize Mexican legacy format: 521XXXXXXXXXX (13) → 52XXXXXXXXXX (12)
+    const phone = digits.startsWith('521') && digits.length === 13
+      ? '52' + digits.slice(3)
+      : digits;
 
     const supabase = createServiceClient();
+
+    // Atomic insert — if phone already exists, returns empty array (no rows inserted)
+    const { data: inserted } = await supabase
+      .from('whatsapp_contacts')
+      .upsert({ phone }, { onConflict: 'phone', ignoreDuplicates: true })
+      .select('phone');
+
+    if (!inserted || inserted.length === 0) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Use original JID for sending (gateway accepts full JID directly)
+    const from = rawJid;
+
     const { data: settings } = await supabase
       .from('settings')
       .select('business_open, closed_message, business_hours')
