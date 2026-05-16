@@ -245,9 +245,11 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
   const [expandedDay,     setExpandedDay]     = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [csvLoading,      setCsvLoading]      = useState(false);
+  const [customersPage,   setCustomersPage]   = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setCustomersPage(0);
     const supabase = createClient();
     const since    = rangeStart(range);
     let q = supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(2000);
@@ -382,8 +384,7 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
     }
     const topCustomers = [...custMap.entries()]
       .map(([phone, d]) => ({ phone, ...d }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10);
+      .sort((a, b) => b.total - a.total);
 
     // Weekly cutoff (current Mon–Sun)
     const now2   = new Date();
@@ -753,28 +754,61 @@ export default function ReportsTab({ allProducts, currentSession, sessionOrders,
           )}
 
           {/* ── Top clientes ── */}
-          {a.topCustomers.length > 0 && (
-            <div className="surface-paper rounded-2xl p-4">
-              <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em] mb-4">Clientes frecuentes</p>
-              <div className="space-y-3">
-                {a.topCustomers.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      i === 0 ? 'bg-yellow-100' : i === 1 ? 'bg-gray-100' : i === 2 ? 'bg-orange-100' : 'bg-brand-paper border border-brand-line'
-                    }`}>
-                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉'
-                        : <span className="text-[10px] font-black text-brand-muted">{i + 1}</span>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-brand-ink truncate">{c.name}</p>
-                      <p className="text-[10px] text-brand-muted">{c.phone} · {c.orders} {c.orders === 1 ? 'orden' : 'órdenes'}</p>
-                    </div>
-                    <p className="font-black text-brand-ink text-sm flex-shrink-0">{fmtMoney(c.total)}</p>
+          {a.topCustomers.length > 0 && (() => {
+            const PAGE_SIZE  = 10;
+            const totalPages = Math.ceil(a.topCustomers.length / PAGE_SIZE);
+            const pageItems  = a.topCustomers.slice(customersPage * PAGE_SIZE, (customersPage + 1) * PAGE_SIZE);
+            return (
+              <div className="surface-paper rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] text-brand-muted uppercase tracking-[0.15em]">
+                    Clientes frecuentes · {a.topCustomers.length} en total
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {pageItems.map((c, i) => {
+                    const globalIdx = customersPage * PAGE_SIZE + i;
+                    return (
+                      <div key={c.phone} className="flex items-center gap-3">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          globalIdx === 0 ? 'bg-yellow-100' : globalIdx === 1 ? 'bg-gray-100' : globalIdx === 2 ? 'bg-orange-100' : 'bg-brand-paper border border-brand-line'
+                        }`}>
+                          {globalIdx === 0 ? '🥇' : globalIdx === 1 ? '🥈' : globalIdx === 2 ? '🥉'
+                            : <span className="text-[10px] font-black text-brand-muted">{globalIdx + 1}</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-brand-ink truncate">{c.name}</p>
+                          <p className="text-[10px] text-brand-muted">{c.phone} · {c.orders} {c.orders === 1 ? 'orden' : 'órdenes'}</p>
+                        </div>
+                        <p className="font-black text-brand-ink text-sm flex-shrink-0">{fmtMoney(c.total)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-brand-line">
+                    <button
+                      onClick={() => setCustomersPage(p => p - 1)}
+                      disabled={customersPage === 0}
+                      className="px-3 py-1.5 rounded-xl border border-brand-line text-sm font-semibold text-brand-muted hover:text-brand-ink disabled:opacity-30 transition-colors"
+                    >
+                      ← Anterior
+                    </button>
+                    <span className="text-xs text-brand-muted">
+                      {customersPage + 1} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCustomersPage(p => p + 1)}
+                      disabled={customersPage >= totalPages - 1}
+                      className="px-3 py-1.5 rounded-xl border border-brand-line text-sm font-semibold text-brand-muted hover:text-brand-ink disabled:opacity-30 transition-colors"
+                    >
+                      Siguiente →
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </>
       )}
 

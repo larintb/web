@@ -66,9 +66,11 @@ const STATUS_HERO: Record<StepKey, { icon: string; title: (o: Order) => string; 
     icon: '🎉',
     title: () => 'Pedido confirmado',
     subtitle: (o) =>
-      o.payment_method === 'cash'
-        ? `Ten listo tu dinero: $${o.total}`
-        : 'Tu pago fue procesado ✓',
+      o.payment_status === 'paid'
+        ? 'Tu pago ya fue recibido ✓'
+        : o.payment_method === 'cash'
+          ? `Ten listo tu dinero: $${o.total}`
+          : 'Tu pago fue procesado ✓',
   },
   preparing: {
     icon: '👨‍🍳',

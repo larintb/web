@@ -101,7 +101,7 @@ export default function ProductsPanel({ categories, products, onChange }: Props)
 
   // ── Variantes helpers ─────────────────────────────────────────────────────
 
-  function setVariant(i: number, field: keyof ProductVariant, value: string | number) {
+  function setVariant(i: number, field: keyof ProductVariant, value: string | number | boolean) {
     const variants = form.variants.map((v, idx) => idx === i ? { ...v, [field]: value } : v);
     setForm({ ...form, variants });
   }
@@ -279,24 +279,35 @@ export default function ProductsPanel({ categories, products, onChange }: Props)
                   </div>
                   <div className="space-y-2">
                     {form.variants.map((v, i) => (
-                      <div key={i} className="flex gap-2">
+                      <div key={i} className="flex gap-2 items-center">
                         <input
                           value={v.name}
                           onChange={e => setVariant(i, 'name', e.target.value)}
                           placeholder="Nombre (ej. Regular)"
-                          className="flex-1 bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-brand-ink text-sm focus:outline-none focus:border-brand-red transition-colors"
+                          className={`flex-1 bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-red transition-colors ${v.disabled ? 'text-brand-muted line-through' : 'text-brand-ink'}`}
                         />
                         <input
                           type="number"
                           value={v.price}
                           onChange={e => setVariant(i, 'price', Number(e.target.value))}
                           placeholder="Precio"
-                          className="w-24 bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-brand-ink text-sm focus:outline-none focus:border-brand-red transition-colors"
+                          className={`w-24 bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-red transition-colors ${v.disabled ? 'text-brand-muted' : 'text-brand-ink'}`}
                         />
+                        <button
+                          title={v.disabled ? 'Reactivar variante' : 'Desactivar variante (agotada)'}
+                          onClick={() => setVariant(i, 'disabled', !v.disabled)}
+                          className={`w-10 h-10 rounded-xl border text-sm flex items-center justify-center transition-colors ${
+                            v.disabled
+                              ? 'border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100'
+                              : 'border-brand-line text-brand-muted hover:border-brand-red hover:text-brand-red'
+                          }`}
+                        >
+                          {v.disabled ? '🔒' : '✓'}
+                        </button>
                         {form.variants.length > 1 && (
                           <button
                             onClick={() => removeVariant(i)}
-                            className="w-10 rounded-xl border border-brand-line text-brand-muted hover:text-red-500 hover:border-red-300 transition-colors text-sm flex items-center justify-center"
+                            className="w-10 h-10 rounded-xl border border-brand-line text-brand-muted hover:text-red-500 hover:border-red-300 transition-colors text-sm flex items-center justify-center"
                           >
                             ✕
                           </button>

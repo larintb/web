@@ -31,7 +31,8 @@ export default function ProductDetailPage() {
       supabase.from('extras').select('*').eq('active', true).order('display_order'),
     ]).then(([{ data: prod }, { data: exts }]) => {
       setProduct(prod);
-      setVariant(prod?.variants?.[0] ?? null);
+      const variants = prod?.variants as import('@/types').ProductVariant[] | undefined;
+      setVariant(variants?.find(v => !v.disabled) ?? variants?.[0] ?? null);
       setExtras(exts ?? []);
       setLoading(false);
     });
@@ -46,6 +47,7 @@ export default function ProductDetailPage() {
   }
 
   const ingredientData = getIngredientData(product.name);
+  const outOfStock     = !product.active || product.variants.every(v => v.disabled);
 
   const extraTotal = Object.entries(selExtras).reduce((sum, [id, q]) => {
     const extra = extras.find(e => e.id === id);
@@ -123,6 +125,20 @@ export default function ProductDetailPage() {
             <div className="flex flex-wrap gap-2.5">
               {product.variants.map(v => {
                 const active = variant.name === v.name;
+                if (v.disabled) {
+                  return (
+                    <div
+                      key={v.name}
+                      className="flex flex-col items-start px-4 py-3 rounded-2xl border-2 border-brand-line bg-gray-50 opacity-50 cursor-not-allowed select-none"
+                    >
+                      <span className="font-bold text-sm text-brand-muted line-through">
+                        {v.badge ? `${v.badge} ` : ''}{v.name}
+                      </span>
+                      <span className="text-brand-muted text-xs font-medium">${v.price}</span>
+                      <span className="text-[10px] text-brand-muted mt-0.5">Agotado</span>
+                    </div>
+                  );
+                }
                 return (
                   <button
                     key={v.name}
@@ -237,17 +253,23 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Add button */}
-          <button
-            onClick={handleAdd}
-            disabled={added}
-            className={`flex-1 py-3.5 rounded-2xl font-black text-base transition-all active:scale-95 shadow-lg ${
-              added
-                ? 'bg-green-500 text-white shadow-green-500/20'
-                : 'bg-brand-red hover:bg-brand-dark text-white shadow-brand-red/20'
-            }`}
-          >
-            {added ? '✓ Agregado' : `Agregar al carrito  ·  $${lineTotal}`}
-          </button>
+          {outOfStock ? (
+            <div className="flex-1 py-3.5 rounded-2xl font-black text-base text-center bg-brand-line text-brand-muted">
+              Sin stock
+            </div>
+          ) : (
+            <button
+              onClick={handleAdd}
+              disabled={added}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-base transition-all active:scale-95 shadow-lg ${
+                added
+                  ? 'bg-green-500 text-white shadow-green-500/20'
+                  : 'bg-brand-red hover:bg-brand-dark text-white shadow-brand-red/20'
+              }`}
+            >
+              {added ? '✓ Agregado' : `Agregar al carrito  ·  $${lineTotal}`}
+            </button>
+          )}
         </div>
       </div>
     </div>

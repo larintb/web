@@ -50,6 +50,7 @@ export interface ProductVariant {
   price: number;
   includes?: string;  // e.g. "Papas + Refresco + 1 Dip"
   badge?: string;     // e.g. "🌶️"
+  disabled?: boolean; // true = agotado, oculto en menú y POS
 }
 
 export interface Product {

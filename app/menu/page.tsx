@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useCart } from '@/store/cart';
@@ -25,7 +25,17 @@ function getCategoryMeta(category: Category, productCount: number) {
 }
 
 export default function MenuPage() {
+  return (
+    <Suspense>
+      <MenuContent />
+    </Suspense>
+  );
+}
+
+function MenuContent() {
   const router       = useRouter();
+  const searchParams = useSearchParams();
+  const isPreview    = searchParams.get('preview') === '1';
   const deliveryType = useCart(s => s.deliveryType);
   const items        = useCart(s => s.items);
   const total        = useCart(s => s.total);
@@ -37,14 +47,14 @@ export default function MenuPage() {
   const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
-    if (!deliveryType) router.replace('/');
-  }, [deliveryType, router]);
+    if (!isPreview && !deliveryType) router.replace('/');
+  }, [isPreview, deliveryType, router]);
 
   useEffect(() => {
     const supabase = createClient();
     Promise.all([
       supabase.from('categories').select('*').eq('active', true).order('display_order'),
-      supabase.from('products').select('*, categories(*)').eq('active', true).order('display_order'),
+      supabase.from('products').select('*, categories(*)').order('display_order'),
     ]).then(([{ data: cats }, { data: prods }]) => {
       setCategories(cats ?? []);
       setProducts(prods ?? []);
@@ -86,8 +96,8 @@ export default function MenuPage() {
 
           {/* Carrito */}
           <button
-            onClick={() => router.push('/carrito')}
-            className="relative flex items-center gap-2 bg-brand-red hover:bg-brand-dark text-white font-bold px-4 py-2.5 rounded-full transition-all active:scale-95 shadow-lg shadow-brand-red/15"
+            onClick={() => !isPreview && router.push('/carrito')}
+            className={`relative flex items-center gap-2 bg-brand-red text-white font-bold px-4 py-2.5 rounded-full transition-all shadow-lg shadow-brand-red/15 ${isPreview ? 'opacity-50 cursor-default' : 'hover:bg-brand-dark active:scale-95'}`}
           >
             <span>🛒</span>
             {itemCount > 0 && <span className="font-black">${total()}</span>}
@@ -204,7 +214,7 @@ export default function MenuPage() {
       </main>
 
       {/* FAB carrito móvil → navega a /carrito */}
-      {itemCount > 0 && !cartOpen && (
+      {itemCount > 0 && !cartOpen && !isPreview && (
         <div className="fixed bottom-6 left-0 right-0 px-4 z-20 md:hidden">
           <button
             onClick={() => router.push('/carrito')}
@@ -218,6 +228,13 @@ export default function MenuPage() {
       )}
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+
+      {/* Banner de vista previa */}
+      {isPreview && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-brand-dark/90 backdrop-blur text-white text-center text-xs font-bold py-2 tracking-widest uppercase">
+          Vista previa — los clientes no pueden hacer pedidos en este modo
+        </div>
+      )}
     </div>
   );
 }

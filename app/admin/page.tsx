@@ -259,6 +259,7 @@ export default function AdminPage() {
   const [pendingAction,   setPendingAction]   = useState<PendingAction | null>(null);
   const [acceptMinutes,   setAcceptMinutes]   = useState(20);
   const [cancelReason,    setCancelReason]    = useState('');
+  const [showBusinessConfirm, setShowBusinessConfirm] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -470,6 +471,39 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-brand-paper text-brand-ink">
 
+      {/* ── Modal de confirmación abrir/cerrar ── */}
+      {showBusinessConfirm && settings && (
+        <div className="fixed inset-0 z-50 bg-brand-dark/30 flex items-center justify-center p-4">
+          <div className="surface-paper rounded-3xl w-full max-w-sm p-6">
+            <div className="text-center mb-5">
+              <p className="text-5xl mb-3">{settings.business_open ? '🔒' : '🟢'}</p>
+              <h2 className="font-display text-5xl text-brand-ink leading-none">
+                {settings.business_open ? 'Cerrar el local' : 'Abrir el local'}
+              </h2>
+              <p className="text-brand-muted text-sm mt-2">
+                {settings.business_open
+                  ? 'Se cerrará el turno actual y se generará el resumen del día.'
+                  : 'Los clientes podrán ver el menú y hacer pedidos.'}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBusinessConfirm(false)}
+                className="flex-1 py-3 rounded-2xl border border-brand-line text-brand-muted font-semibold hover:text-brand-ink transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setShowBusinessConfirm(false); handleBusinessToggle(); }}
+                className={`flex-1 py-3 rounded-2xl font-semibold text-white transition-colors ${settings.business_open ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+              >
+                {settings.business_open ? 'Sí, cerrar' : 'Sí, abrir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Modal de resumen al cerrar ── */}
       {showSummaryModal && closingSummary && (
         <div className="fixed inset-0 z-50 bg-brand-dark/30 flex items-start justify-center p-4 overflow-y-auto">
@@ -566,12 +600,12 @@ export default function AdminPage() {
             <div>
               <h1 className="font-display text-4xl text-brand-ink leading-none">Crispy Charles</h1>
               {saving && <p className="text-xs text-brand-muted">Guardando...</p>}
-              {currentSession && !saving && (
+              {currentSession && settings?.business_open && !saving && (
                 <p className="text-xs text-green-600 font-semibold">
                   Abierto desde {fmtTime(currentSession.opened_at)} · {duration(currentSession.opened_at, null)}
                 </p>
               )}
-              {currentSession && queueCount > 0 && (
+              {currentSession && settings?.business_open && queueCount > 0 && (
                 <p className="text-xs text-brand-muted">
                   Cola: {queueCount} {queueCount === 1 ? 'orden' : 'órdenes'}
                 </p>
@@ -591,8 +625,14 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => window.open('/menu?preview=1', '_blank')}
+              className="text-brand-muted hover:text-brand-ink text-sm transition-colors font-semibold border border-brand-line rounded-xl px-3 py-1.5"
+            >
+              👁 Vista previa
+            </button>
+            <button
               disabled={saving}
-              onClick={handleBusinessToggle}
+              onClick={() => setShowBusinessConfirm(true)}
               className={`flex items-center gap-2 rounded-xl px-3 py-2 transition-all disabled:opacity-60 ${settings?.business_open ? 'bg-green-100 hover:bg-green-200' : 'bg-brand-line/60 hover:bg-brand-line'}`}
             >
               <span className={`text-sm font-semibold ${settings?.business_open ? 'text-green-700' : 'text-brand-muted'}`}>
@@ -645,7 +685,7 @@ export default function AdminPage() {
               <div className={`lg:sticky lg:top-28 lg:flex lg:flex-col lg:h-[calc(100vh-8rem)] ${ordersSubview === 'pos' ? 'hidden lg:flex' : ''}`}>
 
                 {/* ── Contador de órdenes del turno ── */}
-                {currentSession && (() => {
+                {currentSession && settings?.business_open && (() => {
                   const TIER1_MAX = 40;
                   const validOrders = sessionOrders.filter(o => o.status !== 'cancelled');
                   const count   = validOrders.length;
@@ -833,7 +873,7 @@ export default function AdminPage() {
         {tab === 'reports' && (
           <ReportsTab
             allProducts={allProducts}
-            currentSession={currentSession}
+            currentSession={settings?.business_open ? currentSession : null}
             sessionOrders={sessionOrders}
             sessions={sessions}
           />

@@ -160,15 +160,26 @@ export default function POSTab({ categories, allProducts, allExtras, compact = f
             <h2 className="font-display text-5xl text-brand-ink leading-none mb-4">{variantModal.name}</h2>
             <div className="space-y-2">
               {variantModal.variants.map(v => (
-                <button key={v.name}
-                  onClick={() => { addItem(variantModal, v); setVariantModal(null); }}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-brand-paper border border-brand-line hover:border-brand-red hover:bg-red-50 transition-colors">
-                  <div className="text-left">
-                    <p className="font-semibold text-brand-ink">{v.name} {v.badge ?? ''}</p>
-                    {v.includes && <p className="text-xs text-brand-muted">{v.includes}</p>}
+                v.disabled ? (
+                  <div key={v.name}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 border border-brand-line opacity-50 cursor-not-allowed">
+                    <div className="text-left">
+                      <p className="font-semibold text-brand-muted line-through">{v.name} {v.badge ?? ''}</p>
+                      <p className="text-xs text-brand-muted">Agotado</p>
+                    </div>
+                    <p className="font-black text-brand-muted">${v.price}</p>
                   </div>
-                  <p className="font-black text-brand-red">${v.price}</p>
-                </button>
+                ) : (
+                  <button key={v.name}
+                    onClick={() => { addItem(variantModal, v); setVariantModal(null); }}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-brand-paper border border-brand-line hover:border-brand-red hover:bg-red-50 transition-colors">
+                    <div className="text-left">
+                      <p className="font-semibold text-brand-ink">{v.name} {v.badge ?? ''}</p>
+                      {v.includes && <p className="text-xs text-brand-muted">{v.includes}</p>}
+                    </div>
+                    <p className="font-black text-brand-red">${v.price}</p>
+                  </button>
+                )
               ))}
             </div>
             <button onClick={() => setVariantModal(null)}

@@ -17,11 +17,12 @@ export default function ProductCard({ product, priority = false }: Props) {
   const baseVariant    = product.variants[0];
   const hasCombo       = product.variants.some(v => /combo/i.test(v.name));
   const hasHot         = product.variants.some(v => /hot/i.test(v.name));
+  const outOfStock     = !product.active || product.variants.every(v => v.disabled);
 
   return (
     <div
-      onClick={() => router.push(`/menu/${product.id}`)}
-      className="product-card surface-paper flex flex-col cursor-pointer active:scale-[0.98] transition-transform"
+      onClick={() => !outOfStock && router.push(`/menu/${product.id}`)}
+      className={`product-card surface-paper flex flex-col transition-transform ${outOfStock ? 'cursor-default opacity-60' : 'cursor-pointer active:scale-[0.98]'}`}
     >
       {/* Imagen */}
       <div className="relative h-44 bg-gradient-to-br from-[#FFF8F1] to-[#F3E6D7] overflow-hidden">
@@ -70,17 +71,25 @@ export default function ProductCard({ product, priority = false }: Props) {
 
         {/* Precio + botón */}
         <div className="flex items-center justify-between mt-auto">
-          <div>
-            <span className="text-brand-ink font-black text-2xl">${baseVariant.price}</span>
-            {hasCombo && (
-              <span className="ml-2 text-brand-muted text-xs">
-                Combo ${product.variants.find(v => /combo/i.test(v.name))?.price}
-              </span>
-            )}
-          </div>
-          <div className="w-11 h-11 rounded-2xl bg-brand-red text-white font-black text-2xl flex items-center justify-center shadow-md shadow-brand-red/20">
-            +
-          </div>
+          {outOfStock ? (
+            <span className="text-xs font-bold text-brand-muted uppercase tracking-wide bg-brand-line px-3 py-1.5 rounded-full w-full text-center">
+              Sin stock
+            </span>
+          ) : (
+            <>
+              <div>
+                <span className="text-brand-ink font-black text-2xl">${baseVariant.price}</span>
+                {hasCombo && (
+                  <span className="ml-2 text-brand-muted text-xs">
+                    Combo ${product.variants.find(v => /combo/i.test(v.name))?.price}
+                  </span>
+                )}
+              </div>
+              <div className="w-11 h-11 rounded-2xl bg-brand-red text-white font-black text-2xl flex items-center justify-center shadow-md shadow-brand-red/20">
+                +
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
