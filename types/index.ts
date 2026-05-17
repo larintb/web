@@ -28,10 +28,12 @@ export interface Session {
 export interface Settings {
   id: number;
   business_open: boolean;
+  orders_paused: boolean;
   delivery_enabled: boolean;
   pickup_enabled: boolean;
   business_hours: string;
   closed_message: string;
+  pause_message: string;
   delivery_fee: number;
   prep_minutes_per_batch: number;
   updated_at: string;

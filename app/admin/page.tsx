@@ -341,7 +341,9 @@ export default function AdminPage() {
       }
     } else {
       // --- CERRAR ---
-      await supabase.from('settings').update({ business_open: false }).eq('id', 1);
+      // Al cerrar también quitamos la pausa para que no quede activa en la próxima apertura
+      await supabase.from('settings').update({ business_open: false, orders_paused: false }).eq('id', 1);
+      setSettings(s => s ? { ...s, orders_paused: false } : s);
 
       // Calcular resumen con las órdenes de la sesión activa (si existe)
       let summary: SessionSummary = buildSummary([]);
@@ -630,6 +632,17 @@ export default function AdminPage() {
             >
               👁 Vista previa
             </button>
+            {/* Botón de pausa — solo visible con el negocio abierto */}
+            {settings?.business_open && (
+              <button
+                disabled={saving}
+                onClick={() => toggleSetting('orders_paused', !settings.orders_paused)}
+                title={settings.orders_paused ? 'Reanudar pedidos' : 'Pausar pedidos sin cerrar el turno'}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-all disabled:opacity-60 ${settings.orders_paused ? 'bg-orange-100 hover:bg-orange-200 text-orange-700' : 'bg-brand-line/60 hover:bg-brand-line text-brand-muted'}`}
+              >
+                {settings.orders_paused ? '⏸ Pausado' : '⏸ Pausar'}
+              </button>
+            )}
             <button
               disabled={saving}
               onClick={() => setShowBusinessConfirm(true)}
@@ -933,6 +946,18 @@ export default function AdminPage() {
                 onChange={e => setSettings({ ...settings, closed_message: e.target.value })}
                 onBlur={e => toggleSetting('closed_message', e.target.value)}
                 rows={4}
+                className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors resize-none"
+              />
+            </div>
+
+            <div className="surface-paper rounded-2xl p-5">
+              <h3 className="font-display text-4xl text-brand-ink leading-none mb-2">Mensaje al pausar</h3>
+              <p className="text-xs text-brand-muted mb-3">Lo que ven los clientes cuando pausas pedidos sin cerrar el turno</p>
+              <textarea value={settings.pause_message ?? ''}
+                onChange={e => setSettings({ ...settings, pause_message: e.target.value })}
+                onBlur={e => toggleSetting('pause_message', e.target.value)}
+                rows={3}
+                placeholder="Estamos contando el pollo 🐔 Regresamos pronto, ¡no te vayas!"
                 className="w-full bg-brand-paper border border-brand-line rounded-xl px-4 py-3 text-brand-ink focus:outline-none focus:border-brand-red transition-colors resize-none"
               />
             </div>

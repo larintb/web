@@ -51,6 +51,22 @@ export default function LandingPage() {
     );
   }
 
+  // Pedidos pausados (negocio abierto pero sin recibir órdenes nuevas)
+  if (settings?.orders_paused) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-brand-paper px-6 text-center">
+        <div className="text-7xl mb-6">⏸️</div>
+        <h1 className="font-display text-5xl text-brand-ink mb-3 leading-tight max-w-xs">
+          {settings.pause_message ?? 'Estamos contando el pollo 🐔'}
+        </h1>
+        <p className="text-brand-muted text-sm max-w-xs leading-relaxed">
+          Ahorita no estamos tomando pedidos nuevos. ¡Regresa en unos minutos!
+        </p>
+        <p className="mt-8 text-brand-red font-bold text-lg font-display">Crispy Charles</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-paper px-6">
       <div className="w-full max-w-sm">

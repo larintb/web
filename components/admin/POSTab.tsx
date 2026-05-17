@@ -31,6 +31,7 @@ export default function POSTab({ categories, allProducts, allExtras, compact = f
   const [extras,         setExtras]         = useState<CartExtra[]>([]);
   const [customerName,   setCustomerName]   = useState('');
   const [customerPhone,  setCustomerPhone]  = useState('');
+  const [countryCode,    setCountryCode]    = useState('+52');
   const [notes,          setNotes]          = useState('');
   const [payment,        setPayment]        = useState<POSPayment>('cash');
   const [loading,        setLoading]        = useState(false);
@@ -117,6 +118,7 @@ export default function POSTab({ categories, allProducts, allExtras, compact = f
     setExtras([]);
     setCustomerName('');
     setCustomerPhone('');
+    setCountryCode('+52');
     setNotes('');
     setPayment('cash');
     setNumpadValue('');
@@ -132,7 +134,7 @@ export default function POSTab({ categories, allProducts, allExtras, compact = f
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_name:  customerName.trim(),
-          customer_phone: customerPhone.trim() || undefined,
+          customer_phone: customerPhone.trim() ? `${countryCode}${customerPhone.trim()}` : undefined,
           items, extras, subtotal, total,
           payment_method: payment,
           notes: notes.trim() || undefined,
@@ -406,13 +408,23 @@ export default function POSTab({ categories, allProducts, allExtras, compact = f
               onChange={e => setCustomerName(e.target.value)}
               className="w-full bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-brand-ink text-sm placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
             />
-            <input
-              type="tel"
-              placeholder="Teléfono (opcional)"
-              value={customerPhone}
-              onChange={e => setCustomerPhone(e.target.value)}
-              className="w-full bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-brand-ink text-sm placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
-            />
+            <div className="flex gap-2">
+              <select
+                value={countryCode}
+                onChange={e => setCountryCode(e.target.value)}
+                className="bg-brand-paper border border-brand-line rounded-xl px-2 py-2.5 text-brand-ink text-sm focus:outline-none focus:border-brand-red transition-colors"
+              >
+                <option value="+52">🇲🇽 +52</option>
+                <option value="+1">🇺🇸 +1</option>
+              </select>
+              <input
+                type="tel"
+                placeholder="Teléfono (opcional)"
+                value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)}
+                className="flex-1 bg-brand-paper border border-brand-line rounded-xl px-3 py-2.5 text-brand-ink text-sm placeholder-brand-muted focus:outline-none focus:border-brand-red transition-colors"
+              />
+            </div>
             <input
               type="text"
               placeholder="Notas (opcional)"
